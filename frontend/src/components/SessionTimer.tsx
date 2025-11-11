@@ -21,13 +21,10 @@ const SessionTimer: React.FC = () => {
       } else {
         const minutes = Math.floor((remaining / 1000) / 60);
         const seconds = Math.floor((remaining / 1000) % 60);
-        
         setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
       }
     }, 1000);
-
     return () => clearInterval(interval);
-    
   }, [expiresAt, logout]);
 
   if (!timeLeft) {
@@ -35,7 +32,7 @@ const SessionTimer: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '0 10px', color: 'gray', fontSize: '0.9em' }}>
+    <div className="text-sm text-neutral-600">
       Sesi berakhir dalam: {timeLeft}
     </div>
   );

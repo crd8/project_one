@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from fastapi.responses import JSONResponse
 
 from . import auth, crud, models, schemas
 from .database import SessionLocal, engine, get_db
@@ -27,12 +28,20 @@ app.add_middleware(
 
 @app.post("/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    errors = []
     db_user_by_email = crud.get_user_by_email(db, email=user.email)
     if db_user_by_email:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        errors.append({"field": "email", "message": "Email already registered"})
+    
     db_user_by_username = crud.get_user_by_username(db, username=user.username)
     if db_user_by_username:
-        raise HTTPException(status_code=400, detail="Username already taken")
+        errors.append({"field": "username", "message": "Username already taken"})
+    
+    if errors:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"errors": errors},
+        )
     return crud.create_user(db=db, user=user)
 
 @app.post("/token", response_model=schemas.Token)

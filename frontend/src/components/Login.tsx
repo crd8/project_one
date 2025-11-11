@@ -1,35 +1,62 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+// frontend/src/components/Login.tsx
+
+import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { AxiosError } from 'axios';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from './ui/card';
+
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "./ui/card";
 import { Alert, AlertTitle } from './ui/alert';
 import { InfoIcon } from 'lucide-react';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "./ui/form";
+
+const formSchema = z.object({
+  username: z.string().min(1, { message: "Username tidak boleh kosong." }),
+  password: z.string().min(1, { message: "Password tidak boleh kosong." }),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: FormValues) => {
     const params = new URLSearchParams();
-    params.append('username', username);
-    params.append('password', password);
+    params.append('username', data.username);
+    params.append('password', data.password);
 
     try {
       const response = await api.post('/token', params);
       await login(response.data.access_token);
       navigate('/');
     } catch (err) {
-      setError('Login failed. Incorrect username or password.');
+      const error = err as AxiosError;
+      console.error("Login attempt failed:", error.message);
+      form.setError("root", { 
+        message: "Login gagal. Username atau password salah." 
+      });
     }
   };
 
@@ -45,33 +72,62 @@ const Login: React.FC = () => {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit}>
-          <div className='flex flex-col gap-6'>
-            <div className='grid gap-2'>
-              <Label htmlFor='username'>Username</Label>
-              <Input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            </div>
-            <div className='grid gap-2'>
-              <div className='flex items-center'>
-                <Label htmlFor='password'>Password</Label>
-                <a
-                  href="#"
-                  className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                >
-                  Forgot your password?
-                </a>
-              </div>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </div>
-            <Button type="submit" className='w-full'>Login</Button>
-          </div>          
-        </form>
-        {error && 
-          <Alert className='mt-3' variant='destructive'>
-            <InfoIcon />
-            <AlertTitle>{error}</AlertTitle>
-          </Alert>
-        }
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            
+            {form.formState.errors.root && (
+              <Alert variant='destructive'>
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>{form.formState.errors.root.message}</AlertTitle>
+              </Alert>
+            )}
+
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <div className='flex items-center'>
+                    <FormLabel>Password</FormLabel>
+                    <a
+                      href="#"
+                      className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                    >
+                      Forgot your password?
+                    </a>
+                  </div>
+                  <FormControl>
+                    <Input type="password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button 
+              type="submit" 
+              className='w-full'
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "Loading..." : "Login"}
+            </Button>
+            
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import api from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
@@ -34,7 +35,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
-  const login = async (newToken: string) => {
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    setExpiresAt(null);
+    delete api.defaults.headers.Authorization;
+  }, []);
+
+  const login = useCallback(async (newToken: string) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
     api.defaults.headers.Authorization = `Bearer ${newToken}`;
@@ -49,33 +58,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Gagal mengambil data user setelah login", error);
       logout();
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setExpiresAt(null);
-    delete api.defaults.headers.Authorization;
-  };
+  }, [logout]);
 
   useEffect(() => {
     const checkUser = async () => {
       if (token) {
-        api.defaults.headers.Authorization = `Bearer ${token}`;
         try {
           const decodedToken: JwtPayload = jwtDecode(token);
           const expiresTimeStamp = decodedToken.exp * 1000;
 
           if (expiresTimeStamp < Date.now()) {
             console.log("Token sudah kedaluwarsa saat memuat.");
+            logout();
           } else {
             setExpiresAt(expiresTimeStamp);
             api.defaults.headers.Authorization = `Bearer ${token}`;
             const response = await api.get('/users/me/');
             setUser(response.data);
           }
-        } catch (error) {
+        } catch {
           console.log("Token tidak valid atau kedaluwarsa, logout.");
           logout();
         }
@@ -83,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     };
     checkUser();
-  }, [token]);
+  }, [token, logout]);
 
   return (
     <AuthContext.Provider value={{ user, token, isLoading, expiresAt, login, logout }}>

@@ -5,6 +5,8 @@ import Register from './components/Register';
 import Profile from './components/Profile';
 import { useAuth } from './context/AuthContext';
 import SessionTimer from './components/SessionTimer';
+import { Button } from './components/ui/button';
+import { Toaster } from "./components/ui/sonner";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { token, isLoading } = useAuth();
@@ -45,30 +47,59 @@ const App: React.FC = () => {
   return (
     <Router>
       <div>
-        <nav className='bg-neutral-100 flex items-center px-5 py-3'>
-          <ul className='flex'>
-            <li className='px-2'><Link to="/">Home</Link></li>
-            {!token && <li className='px-2'><Link to="/login">Login</Link></li>}
-            {!token && <li className='px-2'><Link to="/register">Register</Link></li>}
-            {token && <li className='px-2'><Link to="/profile">Profile</Link></li>}
-            {token && <li className='px-2'><button onClick={handleLogout}>Logout</button></li>}
-          </ul>
-          {token && <SessionTimer />}
+        <nav className='bg-neutral-100 flex items-center justify-between px-5 py-3 border-b'>
+          
+          <div className="flex items-center space-x-4">
+            <Link to="/" className="font-semibold">MyApp</Link>
+            
+            <Button variant="link" asChild className="p-0">
+              <Link to="/">Home</Link>
+            </Button>
+            
+            {token && (
+              <Button variant="link" asChild className="p-0">
+                <Link to="/profile">Profile</Link>
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            {token ? (
+              <>
+                <SessionTimer />
+                <Button variant="outline" onClick={handleLogout}>Logout</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="link" asChild className="p-0">
+                  <Link to="/login">Login</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/register">Sign up</Link>
+                </Button>
+              </>
+            )}
+          </div>
         </nav>
-        <hr />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<HomePage />} />
-        </Routes>
+        
+        <div className="p-5">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/" element={<HomePage />} />
+          </Routes>
+        </div>
+        <Toaster
+          position="top-center"
+        />
       </div>
     </Router>
   );
