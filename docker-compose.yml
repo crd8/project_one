@@ -32,6 +32,13 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: "redis:alpine"
+    container_name: auth_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   backend:
     build: ./backend
     container_name: auth_backend
@@ -47,6 +54,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     
 volumes:

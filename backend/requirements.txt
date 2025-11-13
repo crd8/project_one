@@ -7,3 +7,5 @@ python-jose[cryptography]
 python-multipart
 pydantic[email]
 bcrypt==3.2.0
+fastapi-limiter
+redis

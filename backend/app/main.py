@@ -8,6 +8,10 @@ from sqlalchemy import text
 from fastapi.responses import JSONResponse
 from datetime import timedelta
 
+import redis.asyncio as redis
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+
 from . import auth, crud, models, schemas
 from .database import SessionLocal, engine, get_db
 from .auth import ACCESS_TOKEN_EXPIRE_MINUTES
@@ -16,6 +20,13 @@ from .security import verify_password
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Server startup: Creating schema and tables if they don't exist yet...")
+
+    try:
+        redis_conn = redis.from_url("redis://redis:6379", encoding="utf-8", decode_responses=True)
+        await FastAPILimiter.init(redis_conn)
+        print("Redis connection successful and FastAPILimiter initialized.")
+    except Exception as e:
+        print(f"Could not connect to Redis: {e}")
     with SessionLocal() as db_conn:
         db_conn.execute(text("CREATE SCHEMA IF NOT EXISTS myapp"))
         db_conn.commit()
@@ -37,7 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/users/", response_model=schemas.User)
+@app.post("/users/", response_model=schemas.User, dependencies=[Depends(RateLimiter(times=10, hours=1))])
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     errors = []
     db_user_by_email = crud.get_user_by_email(db, email=user.email)
@@ -55,7 +66,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         )
     return crud.create_user(db=db, user=user)
 
-@app.post("/token", response_model=schemas.Token)
+@app.post("/token", response_model=schemas.Token, dependencies=[Depends(RateLimiter(times=5, minutes=1))])
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(get_db)
 ):
