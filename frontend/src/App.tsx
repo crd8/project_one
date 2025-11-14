@@ -9,13 +9,13 @@ import { Button } from './components/ui/button';
 import { Toaster } from "./components/ui/sonner";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { token, isLoading } = useAuth();
+  const { getAccessToken, isLoading } = useAuth();
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
-  if (!token) {
+  if (!getAccessToken()) {
     return <Navigate to="/login" />;
   }
 
@@ -38,9 +38,10 @@ const HomePage = () => {
 };
 
 const App: React.FC = () => {
-    const { token, logout } = useAuth();
+    const { getAccessToken, logout } = useAuth();
+    const token = getAccessToken();
     
-    const handleLogout = () => {
+    const handleLogout = async () => {
         logout();
     };
     

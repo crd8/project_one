@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import api from '../services/api';
+import api, { setAuthToken } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
 interface UserProfile {
@@ -20,74 +20,82 @@ interface JwtPayload {
 
 interface AuthContextType {
   user: UserProfile | null;
-  token: string | null;
   isLoading: boolean;
-  expiresAt: number | null;
-  login: (token: string) => Promise<void>;
-  logout: () => void;
+  login: (user: UserProfile, token: string) => void;
+  logout: () => Promise<void>;
+  getAccessToken: () => string | null;
+  getAccessTokenExpiresAt: () => number | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setExpiresAt(null);
-    delete api.defaults.headers.Authorization;
+  const getAccessToken = useCallback(() => accessToken, [accessToken]);
+
+  const getAccessTokenExpiresAt = useCallback(() => {
+    if (!accessToken) return null;
+    try {
+      const decodedToken: JwtPayload = jwtDecode(accessToken);
+      return decodedToken.exp * 1000;
+    } catch {
+      return null;
+    }
+  }, [accessToken]);
+
+  const login = useCallback((loggedInUser: UserProfile, token: string) => {
+    setUser(loggedInUser);
+    setAccessToken(token);
+    setAuthToken(token);
   }, []);
 
-  const login = useCallback(async (newToken: string) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    api.defaults.headers.Authorization = `Bearer ${newToken}`;
+  const logout = useCallback(async () => {
+    setUser(null);
+    setAccessToken(null);
+    setAuthToken(null);
     try {
-      const decodedToken: JwtPayload = jwtDecode(newToken);
-      const expiresTimeStamp = decodedToken.exp * 1000;
-      setExpiresAt(expiresTimeStamp);
-
-      const response = await api.get('/users/me/');
-      setUser(response.data);
+      await api.post('/logout');
     } catch (error) {
-      console.error("Gagal mengambil data user setelah login", error);
-      logout();
+      console.error('Logout API call failed', error);
     }
+  }, []);
+
+  useEffect(() => {
+    const handleLogoutEvent = () => {
+      logout();
+    };
+    window.addEventListener('logout', handleLogoutEvent);
+    return () => {
+      window.removeEventListener('logout', handleLogoutEvent);
+    };
   }, [logout]);
 
   useEffect(() => {
-    const checkUser = async () => {
-      if (token) {
-        try {
-          const decodedToken: JwtPayload = jwtDecode(token);
-          const expiresTimeStamp = decodedToken.exp * 1000;
-
-          if (expiresTimeStamp < Date.now()) {
-            console.log("Token sudah kedaluwarsa saat memuat.");
-            logout();
-          } else {
-            setExpiresAt(expiresTimeStamp);
-            api.defaults.headers.Authorization = `Bearer ${token}`;
-            const response = await api.get('/users/me/');
-            setUser(response.data);
-          }
-        } catch {
-          console.log("Token tidak valid atau kedaluwarsa, logout.");
-          logout();
-        }
+    const checkAuthStatus = async () => {
+      try {
+        const { data } = await api.post('/token/refresh');
+        const newAccessToken = data.access_token;
+        
+        setAccessToken(newAccessToken);
+        setAuthToken(newAccessToken);
+        
+        const response = await api.get('/users/me/');
+        setUser(response.data);
+      } catch (error) {
+        setUser(null);
+        setAccessToken(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
-    checkUser();
-  }, [token, logout]);
+    checkAuthStatus();
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, expiresAt, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, getAccessToken, getAccessTokenExpiresAt }}>
       {children}
     </AuthContext.Provider>
   );

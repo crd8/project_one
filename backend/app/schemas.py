@@ -22,6 +22,10 @@ class User(BaseModel):
     class Config:
         from_attributes = True
 
+class LoginResponse(BaseModel):
+    user: User
+    access_token: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str

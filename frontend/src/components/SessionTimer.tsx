@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const SessionTimer: React.FC = () => {
-  const { expiresAt, logout } = useAuth();
+  const { getAccessTokenExpiresAt, logout } = useAuth();
   const [timeLeft, setTimeLeft] = useState<string>('');
 
   useEffect(() => {
+    const expiresAt = getAccessTokenExpiresAt();
+
     if (!expiresAt) {
       setTimeLeft('');
       return;
@@ -14,18 +16,18 @@ const SessionTimer: React.FC = () => {
     const interval = setInterval(() => {
       const remaining = expiresAt - Date.now();
 
-      if (remaining <= 0) {
+      if (remaining <= 1000) {
         clearInterval(interval);
-        setTimeLeft('Sesi telah berakhir.');
-        logout();
+        setTimeLeft('Refreshing...');
       } else {
         const minutes = Math.floor((remaining / 1000) / 60);
         const seconds = Math.floor((remaining / 1000) % 60);
         setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
       }
     }, 1000);
+
     return () => clearInterval(interval);
-  }, [expiresAt, logout]);
+  }, [getAccessTokenExpiresAt, logout]);
 
   if (!timeLeft) {
     return null;

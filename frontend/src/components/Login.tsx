@@ -48,14 +48,29 @@ const Login: React.FC = () => {
     params.append('password', data.password);
 
     try {
-      const response = await api.post('/token', params);
-      await login(response.data.access_token);
+      const { data: loginResponse } = await api.post('/token', params);
+      login(loginResponse.user, loginResponse.access_token);
       navigate('/');
-    } catch (err) {
-      const error = err as AxiosError;
-      console.error("Login attempt failed:", error.message);
+    } catch (err: unknown) {
+      let errorMessage = "Failed to log in. An unexpected error occurred."
+
+      if (err instanceof AxiosError) {
+        console.error("Login attempt failed (AxiosError):", err.response?.data || err.message);
+
+        if (err.response?.status === 429) {
+          errorMessage = "Too many login attempts. Please try again later.";
+        } else if (err.response?.status === 401) {
+          errorMessage = "Login failed. Incorrect username or password.";
+        }
+      } else if (err instanceof Error) {
+        console.error("Login attempt failed (Error):", err.message);
+        errorMessage = err.message;
+      } else {
+        console.error("Login attempt failed (Unknown error):", err);
+      }
+
       form.setError("root", { 
-        message: "Login gagal. Username atau password salah." 
+        message: errorMessage
       });
     }
   };
