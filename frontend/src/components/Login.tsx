@@ -80,7 +80,7 @@ const Login: React.FC = () => {
 
     } catch (err: unknown) {
       if (err instanceof AxiosError && err.response?.status === 400) {
-        setOtpError("Kode OTP salah.");
+        setOtpError("Wrong OTP code.");
       } else {
         setOtpError("Failed to verify. Session may expire.");
       }
@@ -168,7 +168,7 @@ const Login: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-center mb-4">
                 <div className="p-3 bg-neutral-200 rounded-full">
-                  <Lock className="w-8 h-8 text-neutral-700" />
+                  <Lock className="w-8 h-8 text-neutral-800" />
                 </div>
               </div>
               <Input 

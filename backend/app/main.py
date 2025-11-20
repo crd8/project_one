@@ -121,14 +121,22 @@ async def enable_2fa(
 
 @app.post("/auth/2fa/disable")
 async def disable_2fa(
+  request: schemas.Disable2FARequest,
   current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
   db: Session = Depends(get_db)
 ):
   db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
 
+  if not security.verify_password(request.password, db_user.hashed_password):
+    raise HTTPException(
+      status_code=400,
+      detail="Incorrect password. Unable to disable 2FA."
+    )
+
   db_user.is_2fa_enabled = False
   db_user.totp_secret = None
   db.commit()
+
   return {"message": "2FA has been disabled"}
 
 @app.post("/token", response_model=schemas.LoginResponse, dependencies=[Depends(RateLimiter(times=5, minutes=1))])

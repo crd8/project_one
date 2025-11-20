@@ -35,7 +35,7 @@ const SessionTimer: React.FC = () => {
 
   return (
     <div className="text-sm text-neutral-600">
-      Sesi berakhir dalam: {timeLeft}
+      Session timeout: {timeLeft}
     </div>
   );
 };

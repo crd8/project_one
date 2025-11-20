@@ -34,6 +34,9 @@ class TwoFactorLoginRequest(BaseModel):
   temp_token: str
   code: str
 
+class Disable2FARequest(BaseModel):
+  password: str
+
 class LoginResponse(BaseModel):
   user: Optional[User] = None
   access_token: Optional[str] = None
