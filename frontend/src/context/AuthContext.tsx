@@ -11,6 +11,7 @@ interface UserProfile {
   is_active: boolean;
   is_superuser: boolean;
   created_at: string;
+  is_2fa_enabled: boolean;
 }
 
 interface JwtPayload {
@@ -46,10 +47,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [accessToken]);
 
-  const login = useCallback((loggedInUser: UserProfile, token: string) => {
+  const login = useCallback((loggedInUser: UserProfile, token: string | null) => {
     setUser(loggedInUser);
-    setAccessToken(token);
-    setAuthToken(token);
+    if (token) {
+      setAccessToken(token);
+      setAuthToken(token);
+    }
   }, []);
 
   const logout = useCallback(async () => {

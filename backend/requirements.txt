@@ -9,3 +9,6 @@ pydantic[email]
 bcrypt==3.2.0
 fastapi-limiter
 redis
+pyotp
+qrcode
+Pillow

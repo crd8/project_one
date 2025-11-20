@@ -4,31 +4,45 @@ import uuid
 from datetime import datetime
 
 class UserCreate(BaseModel):
-    username: str
-    fullname: str
-    email: EmailStr
-    password: str
+  username: str
+  fullname: str
+  email: EmailStr
+  password: str
 
 class User(BaseModel):
-    id: uuid.UUID
-    username: str
-    fullname: str
-    email: EmailStr
-    is_active: bool
-    is_superuser: bool
-    created_at: datetime
-    updated_at: Optional[datetime]
+  id: uuid.UUID
+  username: str
+  fullname: str
+  email: EmailStr
+  is_active: bool
+  is_superuser: bool
+  is_2fa_enabled: bool
+  created_at: datetime
+  updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+  class Config:
+    from_attributes = True
+
+class TwoFactorSetuoResponse(BaseModel):
+  secret: str
+  qr_code: str
+
+class TwoFactorVerifyRequest(BaseModel):
+  code: str
+
+class TwoFactorLoginRequest(BaseModel):
+  temp_token: str
+  code: str
 
 class LoginResponse(BaseModel):
-    user: User
-    access_token: str
+  user: Optional[User] = None
+  access_token: Optional[str] = None
+  require_2fa: bool = False
+  temp_token: Optional[str] = None
 
 class Token(BaseModel):
-    access_token: str
-    token_type: str
+  access_token: str
+  token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+  username: str | None = None
