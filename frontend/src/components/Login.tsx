@@ -37,6 +37,22 @@ const Login: React.FC = () => {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
+  const [isResetLoading, setIsResetLoading] = useState(false);
+
+  const handleRequestReset = async () => {
+    const emailInput = prompt("Enter your account email to reset 2FA:");
+    if (!emailInput) return;
+
+    setIsResetLoading(true);
+    try {
+      await api.post('/auth/2fa/request-reset', { email: emailInput });
+      alert("Check your email (including spam folder) for the reset link.");
+    } catch (error) {
+      alert("Failed to send request.")
+    } finally {
+      setIsResetLoading(false);
+    }
+  }
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -184,6 +200,17 @@ const Login: React.FC = () => {
             <Button type="submit" className='w-full' disabled={isLoading || otp.length < 6}>
               {isLoading ? "Verifying..." : "Verify Code"}
             </Button>
+
+            <div className="text-center mt-4">
+              <button 
+                type="button"
+                onClick={handleRequestReset}
+                className="text-xs text-blue-600 hover:underline"
+                disabled={isResetLoading}
+              >
+                {isResetLoading ? "Mengirim..." : "HP Hilang / Authenticator Terhapus?"}
+              </button>
+            </div>
             
             <Button 
               type="button" 

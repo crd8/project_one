@@ -1,11 +1,14 @@
 from typing import Annotated
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException, status, Response, Cookie, Body
+from fastapi import Depends, FastAPI, HTTPException, status, Response, Cookie, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from fastapi.responses import JSONResponse
 from datetime import timedelta
 from jose import JWTError, jwt
 
@@ -14,13 +17,23 @@ import pyotp
 import qrcode
 import io
 import base64
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
 
 from . import auth, crud, models, schemas, security
 from .database import SessionLocal, engine, get_db
 from .auth import ACCESS_TOKEN_EXPIRE_MINUTES
 from .security import verify_password
+
+conf = ConnectionConfig(
+  MAIL_USERNAME="",
+  MAIL_PASSWORD="",
+  MAIL_FROM="noreply@myapp.com",
+  MAIL_PORT="1025",
+  MAIL_SERVER="mailpit", #nama service di docker-compose
+  MAIL_STARTTLS=False,
+  MAIL_SSL_TLS=False,
+  USE_CREDENTIALS=False,
+  VALIDATE_CERTS=False,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,7 +67,11 @@ app.add_middleware(
 )
 
 @app.post("/users/", response_model=schemas.User, dependencies=[Depends(RateLimiter(times=10, hours=1))])
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(
+  user: schemas.UserCreate,
+  background_tasks: BackgroundTasks,
+  db: Session = Depends(get_db)
+):
   errors = []
   db_user_by_email = crud.get_user_by_email(db, email=user.email)
   if db_user_by_email:
@@ -63,13 +80,65 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
   db_user_by_username = crud.get_user_by_username(db, username=user.username)
   if db_user_by_username:
     errors.append({"field": "username", "message": "Username already taken"})
+
+  new_user = crud.create_user(db=db, user=user)
+
+  verify_token = auth.create_access_token(
+    data={"sub": new_user.username, "type": "email_verification"},
+    expires_delta=timedelta(hours=24)
+  )
+
+  verify_link = f"http://localhost:8000/auth/verify-email?token={verify_token}"
+
+  html = f"""
+  <h3>WELCOME, {new_user.fullname}!</h3>
+  <p>Thank you for registering. Please click the button below to activate your account:</p>
+  <a href="{verify_link}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Email Verification</a>
+  <p>Link valid for 24 hours.</p>
+  """
+
+  message = MessageSchema(
+    subject="MyApp Account Verification",
+    recipients=[new_user.email],
+    body=html,
+    subtype=MessageType.html
+  )
   
-  if errors:
-    return JSONResponse(
-      status_code=status.HTTP_400_BAD_REQUEST,
-      content={"errors": errors},
-    )
-  return crud.create_user(db=db, user=user)
+  fm = FastMail(conf)
+  background_tasks.add_task(fm.send_message, message)
+  
+  return new_user
+  
+  # if errors:
+  #   return JSONResponse(
+  #     status_code=status.HTTP_400_BAD_REQUEST,
+  #     content={"errors": errors},
+  #   )
+  # return crud.create_user(db=db, user=user)
+
+@app.get("/auth/verify-email")
+async def verify_email(token: str, db: Session = Depends(get_db)):
+  try:
+    payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+    username: str = payload.get("sub")
+    token_type: str = payload.get("type")
+      
+    if username is None or token_type != "email_verification":
+      raise HTTPException(status_code=400, detail="Token invalid")
+  except JWTError:
+    raise HTTPException(status_code=400, detail="Token expired or invalid")
+      
+  user = crud.get_user_by_username(db, username=username)
+  if not user:
+    raise HTTPException(status_code=404, detail="User not found")
+      
+  if user.is_active:
+    return JSONResponse(content={"message": "The account is already active. Please log in."})
+      
+  user.is_active = True
+  db.commit()
+  
+  return JSONResponse(content={"message": "Email successfully verified! Your account is now active."})
 
 @app.post("/auth/2fa/setup", response_model=schemas.TwoFactorSetuoResponse)
 async def setup_2fa(
@@ -138,6 +207,80 @@ async def disable_2fa(
   db.commit()
 
   return {"message": "2FA has been disabled"}
+
+@app.post("/auth/2fa/request-reset")
+async def request_2fa_reset(
+  body: schemas.EmailSchema,
+  db: Session = Depends(get_db)
+):
+  user = crud.get_user_by_email(db, email=body.email)
+  if not user:
+    return {"message": "If the email is registered, a reset link has been sent."}
+  
+  if not user.is_2fa_enabled:
+    return {"message": "2FA is not active on this account."}
+  
+  reset_token = auth.create_access_token(
+    data={"sub": user.username, "type": "2fa_reset"},
+    expires_delta=timedelta(minutes=15)
+  )
+
+  reset_link = f"http://localhost:8000/auth/2fa/confirm-reset?token={reset_token}"
+
+  html = f"""
+  <p>Hello {user.fullname},</p>
+  <p>Someone asked to turn off 2FA on your account.</p>
+  <p>If this is you, please click the link below to turn off 2FA:</p>
+  <a href="{reset_link}">Turn Off My 2FA</a>
+  <p>This link expires in 15 minutes.</p>
+  """
+
+  message = MessageSchema(
+    subject="Reset 2FA - MyApp",
+    recipients=[user.email],
+    body=html,
+    subtype=MessageType.html
+  )
+
+  fm = FastMail(conf)
+  await fm.send_message(message)
+
+  return {"message": "If the email is registered, a reset link has been sent."}
+
+@app.get("/auth/2fa/confirm-reset")
+async def confirm_2fa_reset(
+  token: str, 
+  db: Session = Depends(get_db)
+):
+  try:
+    payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+    username: str = payload.get("sub")
+    token_type: str = payload.get("type")
+
+    if username is None or token_type != "2fa_reset":
+      raise HTTPException(
+        status_code=400,
+        detail="Invalid token"
+      )
+  
+  except JWTError:
+    raise HTTPException(
+      status_code=400,
+      detail="Token expired or invalid"
+    )
+  
+  user = crud.get_user_by_username(db, username=username)
+  if not user:
+    raise HTTPException(
+      status_code=404,
+      detail="user not found"
+    )
+  
+  user.is_2fa_enabled = False
+  user.totp_secret = None
+  db.commit()
+
+  return JSONResponse(content={"message": "2FA has been successfully disabled. Please log in again with your password only."})
 
 @app.post("/token", response_model=schemas.LoginResponse, dependencies=[Depends(RateLimiter(times=5, minutes=1))])
 async def login_for_access_token(

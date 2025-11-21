@@ -70,8 +70,8 @@ const Register: React.FC = () => {
         fullname: data.fullname,
       });
       
-      toast("Your account has been created. Please log in.", {
-        icon: <CheckCircle2 className="h-5 w-5" />
+      toast.success("Registrasi Berhasil!", {
+        description: "Please check your email inbox (Mailpit) to verify your account before logging in."
       });
       navigate('/login');
 

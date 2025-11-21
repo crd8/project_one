@@ -23,6 +23,9 @@ class User(BaseModel):
   class Config:
     from_attributes = True
 
+class EmailSchema(BaseModel):
+  email: EmailStr
+
 class TwoFactorSetuoResponse(BaseModel):
   secret: str
   qr_code: str
