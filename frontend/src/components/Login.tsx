@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "./ui/card";
 import { Alert, AlertTitle } from './ui/alert';
-import { InfoIcon, Lock } from 'lucide-react';
+import { InfoIcon, Lock, Loader2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -20,45 +20,70 @@ import {
   FormLabel,
   FormMessage,
 } from "./ui/form";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
+// schema login
 const loginSchema = z.object({
   username: z.string().min(1, { message: "Username cannot be blank." }),
   password: z.string().min(1, { message: "Password cannot be blank." }),
 });
 
+// schema reset 2fa
+const resetSchema = z.object({
+  email: z.string().email({ message: "Invalid email format." }),
+});
+
 type LoginFormValues = z.infer<typeof loginSchema>;
+type ResetFormValues = z.infer<typeof resetSchema>;
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  // State Login
   const [loginStep, setLoginStep] = useState<1 | 2>(1);
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
-  const [isResetLoading, setIsResetLoading] = useState(false);
 
-  const handleRequestReset = async () => {
-    const emailInput = prompt("Enter your account email to reset 2FA:");
-    if (!emailInput) return;
+  // State Modal Reset
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  
+  // State Dialog success
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState("");
 
-    setIsResetLoading(true);
-    try {
-      await api.post('/auth/2fa/request-reset', { email: emailInput });
-      alert("Check your email (including spam folder) for the reset link.");
-    } catch (error) {
-      alert("Failed to send request.")
-    } finally {
-      setIsResetLoading(false);
-    }
-  }
-
-  const form = useForm<LoginFormValues>({
+  // form login
+  const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: "", password: "" },
   });
 
+  // form reset 2fa
+  const resetForm = useForm<ResetFormValues>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { email: "" },
+  });
+
+  // handler login
   const onCredentialsSubmit = async (data: LoginFormValues) => {
     const params = new URLSearchParams();
     params.append('username', data.username);
@@ -76,14 +101,20 @@ const Login: React.FC = () => {
         navigate('/');
       }
     } catch (err: unknown) {
-      handleLoginError(err);
+      let errorMessage = "Login failed.";
+      if (err instanceof AxiosError) {
+        if (err.response?.status === 429) errorMessage = "Too many login attempts.";
+        else if (err.response?.status === 401) errorMessage = "Incorrect username or password.";
+      }
+      loginForm.setError("root", { message: errorMessage });
     }
   };
 
+  // handler verfiy otp
   const onOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setOtpError("");
-    setIsLoading(true);
+    setIsLoginLoading(true);
 
     try {
       const response = await api.post('/auth/2fa/verify-login', {
@@ -101,18 +132,42 @@ const Login: React.FC = () => {
         setOtpError("Failed to verify. Session may expire.");
       }
     } finally {
-      setIsLoading(false);
+      setIsLoginLoading(false);
     }
   };
 
-  const handleLoginError = (err: unknown) => {
-    let errorMessage = "Login failed.";
-    if (err instanceof AxiosError) {
-      if (err.response?.status === 429) errorMessage = "Too many login attempts.";
-      else if (err.response?.status === 401) errorMessage = "Incorrect username or password.";
+  // handle request reset link 2fa
+  const onResetSubmit = async (data: ResetFormValues) => {
+    try {
+      await api.post('/auth/2fa/request-reset', { email: data.email });
+      
+      setIsResetOpen(false);
+      resetForm.reset();
+      
+      setDialogMessage("A reset link has been sent to your email (also check your spam folder).");
+      setShowSuccessDialog(true);
+      
+      setLoginStep(1);
+      setOtp("");
+      
+    } catch (error) {
+      resetForm.setError("root", { message: "Failed to send request. Please try again later." });
     }
-    form.setError("root", { message: errorMessage });
   };
+
+  // useEffect handle url params
+  React.useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'reset_success') {
+      setDialogMessage("2FA Successfully Disabled! Please log back in with your password only.");
+      setShowSuccessDialog(true);
+      setSearchParams({});
+    } else if (status === 'invalid_token') {
+      setDialogMessage("The reset link is invalid or has expired.");
+      setShowSuccessDialog(true);
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   return (
     <Card className='px-5 max-w-sm mx-auto mt-5'>
@@ -130,48 +185,51 @@ const Login: React.FC = () => {
         )}
       </CardHeader>
       <CardContent>
+        
+        {/* form login */}
         {loginStep === 1 && (
-          <Form {...form}>
-          <form onSubmit={form.handleSubmit(onCredentialsSubmit)} className="space-y-6">
+          <Form {...loginForm}>
+            <form onSubmit={loginForm.handleSubmit(onCredentialsSubmit)} className="space-y-6">
               
-            {form.formState.errors.root && (
-            <Alert variant='destructive'>
-              <InfoIcon className="h-4 w-4" />
-              <AlertTitle>{form.formState.errors.root.message}</AlertTitle>
-            </Alert>
-            )}
+              {loginForm.formState.errors.root && (
+                <Alert variant='destructive'>
+                  <InfoIcon className="h-4 w-4" />
+                  <AlertTitle>{loginForm.formState.errors.root.message}</AlertTitle>
+                </Alert>
+              )}
 
-            <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-              <FormLabel>Username</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
-              <FormMessage />
-              </FormItem>
-            )}
-            />
+              <FormField
+                control={loginForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl><Input type="password" {...field} /></FormControl>
-              <FormMessage />
-              </FormItem>
-            )}
-            />
-            
-            <Button type="submit" className='w-full' disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Verifying..." : "Login"}
-            </Button>
-          </form>
+              <FormField
+                control={loginForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl><Input type="password" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button type="submit" className='w-full' disabled={loginForm.formState.isSubmitting}>
+                {loginForm.formState.isSubmitting ? "Verifying..." : "Login"}
+              </Button>
+            </form>
           </Form>
         )}
 
+        {/* verify OTP input */}
         {loginStep === 2 && (
           <form onSubmit={onOtpSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4">
             {otpError && (
@@ -197,25 +255,22 @@ const Login: React.FC = () => {
               />
             </div>
 
-            <Button type="submit" className='w-full' disabled={isLoading || otp.length < 6}>
-              {isLoading ? "Verifying..." : "Verify Code"}
+            <Button type="submit" className='w-full' disabled={isLoginLoading || otp.length < 6}>
+              {isLoginLoading ? "Verifying..." : "Verify Code"}
             </Button>
 
             <div className="text-center mt-4">
               <button 
                 type="button"
-                onClick={handleRequestReset}
+                onClick={() => setIsResetOpen(true)}
                 className="text-xs text-blue-600 hover:underline"
-                disabled={isResetLoading}
               >
-                {isResetLoading ? "Mengirim..." : "HP Hilang / Authenticator Terhapus?"}
+                Reset Authenticator?
               </button>
             </div>
             
             <Button 
-              type="button" 
-              variant="ghost" 
-              className="w-full mt-2" 
+              type="button" variant="ghost" className="w-full mt-2" 
               onClick={() => { setLoginStep(1); setOtp(""); }}
             >
               Back to Login
@@ -223,6 +278,73 @@ const Login: React.FC = () => {
           </form>
         )}
       </CardContent>
+
+      {/* modal and form reset 2fa */}
+      <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reset 2FA Authentication</DialogTitle>
+            <DialogDescription>
+              Enter the email address registered to this account. We'll send you a link to disable 2FA.
+            </DialogDescription>
+          </DialogHeader>
+            
+          <Form {...resetForm}>
+            <form onSubmit={resetForm.handleSubmit(onResetSubmit)} className="space-y-4">
+              
+              {resetForm.formState.errors.root && (
+                <Alert variant="destructive">
+                <AlertTitle>{resetForm.formState.errors.root.message}</AlertTitle>
+                </Alert>
+              )}
+
+              <FormField
+                control={resetForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Akun</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter className="mt-4">
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  onClick={() => setIsResetOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={resetForm.formState.isSubmitting}>
+                  {resetForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Reset Link
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Information</AlertDialogTitle>
+            <AlertDialogDescription>{dialogMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
+              Ready, Got It
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </Card>
   );
 };

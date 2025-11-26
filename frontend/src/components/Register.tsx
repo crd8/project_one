@@ -70,7 +70,7 @@ const Register: React.FC = () => {
         fullname: data.fullname,
       });
       
-      toast.success("Registrasi Berhasil!", {
+      toast.success("Registration Successful!", {
         description: "Please check your email inbox (Mailpit) to verify your account before logging in."
       });
       navigate('/login');

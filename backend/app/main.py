@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, status, Response, Cookie, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
@@ -264,10 +264,7 @@ async def confirm_2fa_reset(
       )
   
   except JWTError:
-    raise HTTPException(
-      status_code=400,
-      detail="Token expired or invalid"
-    )
+    return RedirectResponse(url="http://localhost:3000/login?status=invalid_token")
   
   user = crud.get_user_by_username(db, username=username)
   if not user:
@@ -280,7 +277,7 @@ async def confirm_2fa_reset(
   user.totp_secret = None
   db.commit()
 
-  return JSONResponse(content={"message": "2FA has been successfully disabled. Please log in again with your password only."})
+  return RedirectResponse(url="http://localhost:3000/login?status=reset_success")
 
 @app.post("/token", response_model=schemas.LoginResponse, dependencies=[Depends(RateLimiter(times=5, minutes=1))])
 async def login_for_access_token(
