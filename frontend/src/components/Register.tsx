@@ -71,7 +71,7 @@ const Register: React.FC = () => {
       });
       
       toast.success("Registration Successful!", {
-        description: "Please check your email inbox (Mailpit) to verify your account before logging in."
+        description: "Please check your email inbox to verify your account before logging in."
       });
       navigate('/login');
 
