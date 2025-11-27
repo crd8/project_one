@@ -32,5 +32,7 @@ class RefreshToken(Base):
   token_hash = Column(String, unique=True, index=True, nullable=False)
   created_at = Column(DateTime(timezone=True), server_default=func.now())
   expires_at = Column(DateTime(timezone=True), nullable=False)
+  user_agent = Column(String, nullable=True)
+  ip_address = Column(String, nullable=True)
 
   user = relationship("User", back_populates="refresh_tokens")

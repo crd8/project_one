@@ -46,6 +46,14 @@ class LoginResponse(BaseModel):
   require_2fa: bool = False
   temp_token: Optional[str] = None
 
+class SessionResponse(BaseModel):
+  id: uuid.UUID
+  user_agent: str | None
+  ip_address: str | None
+  created_at: datetime
+  expires_at: datetime
+  is_current: bool = False
+
 class Token(BaseModel):
   access_token: str
   token_type: str

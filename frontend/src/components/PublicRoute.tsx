@@ -12,7 +12,7 @@ const PublicRoute = ({ children }: { children?: React.ReactNode }) => {
     return <Navigate to="/" replace />;
   }
 
-  return children ? <>children</> : <Outlet/>
+  return children ? <>{children}</> : <Outlet/>
 }
 
 export default PublicRoute

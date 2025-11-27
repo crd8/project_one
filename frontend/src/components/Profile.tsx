@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import ActiveSessions from './ActiveSessions';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Button } from './ui/button';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
@@ -94,6 +95,7 @@ const Profile: React.FC = () => {
           )}
         </CardFooter>
       </Card>
+      <ActiveSessions />
       <TwoFactorSetup
         isOpen={is2FAModalOpen}
         onOpenChange={setIs2FAModalOpen}

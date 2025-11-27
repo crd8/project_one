@@ -1,6 +1,6 @@
 from typing import Annotated
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException, status, Response, Cookie, Body, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, status, Response, Request, Cookie, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
@@ -17,6 +17,7 @@ import pyotp
 import qrcode
 import io
 import base64
+import uuid
 
 from . import auth, crud, models, schemas, security
 from .database import SessionLocal, engine, get_db
@@ -282,6 +283,7 @@ async def confirm_2fa_reset(
 @app.post("/token", response_model=schemas.LoginResponse, dependencies=[Depends(RateLimiter(times=5, minutes=1))])
 async def login_for_access_token(
   response: Response,
+  request: Request,
   form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
   db: Session = Depends(get_db)
 ):
@@ -292,6 +294,9 @@ async def login_for_access_token(
       detail="Incorrect username or password",
       headers={"WWW-Authenticate": "Bearer"},
     )
+  
+  user_agent = request.headers.get("user-agent")
+  ip_address = request.client.host
   
   if user.is_2fa_enabled:
     temp_token = auth.create_access_token(
@@ -306,7 +311,12 @@ async def login_for_access_token(
     expires_delta=expires_delta,
   )
 
-  refresh_token_plain, refresh_token_expires_at = auth.create_refresh_token_and_save(db, user_id=user.id)
+  refresh_token_plain, refresh_token_expires_at = auth.create_refresh_token_and_save(
+    db,
+    user_id=user.id,
+    user_agent=user_agent,
+    ip_address=ip_address
+  )
 
   response.set_cookie(
     key="refresh_token",
@@ -322,6 +332,7 @@ async def login_for_access_token(
 @app.post("/auth/2fa/verify-login", response_model=schemas.LoginResponse)
 async def verify_2fa_login(
   response: Response,
+  request: Request,
   body: schemas.TwoFactorLoginRequest,
   db: Session = Depends(get_db)
 ):
@@ -349,13 +360,22 @@ async def verify_2fa_login(
       detail="Invalid TOTP code"
     )
   
+  user_agent = request.headers.get("user-agent")
+  ip_address = request.client.host
+  
   expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
   access_token = auth.create_access_token(
     data={"sub": user.username},
     expires_delta=expires_delta,
   )
 
-  refresh_token_plain, refresh_token_expires_at = auth.create_refresh_token_and_save(db, user_id=user.id)
+  refresh_token_plain, refresh_token_expires_at = auth.create_refresh_token_and_save(
+    db,
+    user_id=user.id,
+    user_agent=user_agent,
+    ip_address=ip_address
+  )
+
   response.set_cookie(
     key="refresh_token",
     value=refresh_token_plain,
@@ -365,7 +385,57 @@ async def verify_2fa_login(
     samesite="lax",
   )
 
-  return {"access_token": access_token, "user": user, "require_2fa": False}
+  return {"access_token": access_token, "user": user, "require_2fa": False}\
+  
+@app.get("/auth/sessions", response_model=list[schemas.SessionResponse])
+async def get_active_sessions(
+  request: Request,
+  current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
+  db: Session = Depends(get_db)
+):
+  sessions = crud.get_user_active_sessions(db, user_id=current_user.id)
+
+  current_refresh_token = request.cookies.get("refresh_token")
+
+  result = []
+  for s in sessions:
+    is_current = False
+    if current_refresh_token and security.verify_password(current_refresh_token, s.token_hash):
+      is_current = True 
+
+    result.append(schemas.SessionResponse(
+      id=s.id,
+      user_agent=s.user_agent,
+      ip_address=s.ip_address,
+      created_at=s.created_at,
+      expires_at=s.expires_at,
+      is_current=is_current
+    ))
+
+  return result
+
+@app.delete("/auth/sessions/{session_id}")
+async def revoke_session(
+  session_id: str,
+  current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
+  db: Session = Depends(get_db)
+):
+  try:
+    s_id = uuid.UUID(session_id)
+  except ValueError:
+    raise HTTPException(
+      status_code=400,
+      detail="Invalid session ID format"
+    )
+  
+  success = crud.delete_session_by_id(db, session_id=s_id, user_id=current_user.id)
+  if not success:
+    raise HTTPException(
+      status_code=404,
+      detail="Session not found"
+    )
+  
+  return {"message": "Session revoked successfully"}
     
 @app.post("/token/refresh", response_model=schemas.Token)
 async def refresh_access_token(

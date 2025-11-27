@@ -28,7 +28,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def create_refresh_token_and_save(db: Session, user_id: uuid.UUID):
+def create_refresh_token_and_save(db: Session, user_id: uuid.UUID, user_agent: str = None, ip_address: str = None):
     refresh_token_plain = secrets.token_urlsafe(64)
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
@@ -36,7 +36,9 @@ def create_refresh_token_and_save(db: Session, user_id: uuid.UUID):
         db=db,
         user_id=user_id,
         token=refresh_token_plain,
-        expires_at=expires_at
+        expires_at=expires_at,
+        user_agent=user_agent,
+        ip_address=ip_address
     )
     return refresh_token_plain, expires_at
 

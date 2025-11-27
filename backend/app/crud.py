@@ -23,17 +23,33 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
-def create_refresh_token(db: Session, user_id: uuid.UUID, token: str, expires_at: datetime):
+def create_refresh_token(db: Session, user_id: uuid.UUID, token: str, expires_at: datetime, user_agent: str = None, ip_address: str = None):
     hashed_token = security.get_password_hash(token)
     db_token = models.RefreshToken(
         user_id=user_id,
         token_hash=hashed_token,
-        expires_at=expires_at
+        expires_at=expires_at,
+        user_agent=user_agent,
+        ip_address=ip_address
     )
     db.add(db_token)
     db.commit()
     db.refresh(db_token)
     return db_token
+
+def get_user_active_sessions(db: Session, user_id: uuid.UUID):
+    return db.query(models.RefreshToken).filter(models.RefreshToken.user_id == user_id).all()
+
+def delete_session_by_id(db: Session, session_id: uuid.UUID, user_id: uuid.UUID):
+    session = db.query(models.RefreshToken).filter(
+        models.RefreshToken.id == session_id,
+        models.RefreshToken.user_id == user_id
+    ).first()
+    if session:
+        db.delete(session)
+        db.commit()
+        return True
+    return False
 
 def get_refresh_token(db: Session, token: str, user: models.User):
     for db_token in user.refresh_tokens:
