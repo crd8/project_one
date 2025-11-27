@@ -1,16 +1,16 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { useForm } from "react-hook-form";
+import { get, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { AxiosError } from 'axios';
 import api from '../services/api';
+import zxcvbn from 'zxcvbn';
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "./ui/card";
 import { Alert, AlertTitle } from './ui/alert';
 import { InfoIcon } from 'lucide-react';
-import { CheckCircle2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -20,12 +20,13 @@ import {
   FormMessage,
 } from "./ui/form";
 import { toast } from "sonner";
+import { Progress } from './ui/progress';
 
 const formSchema = z.object({
   username: z.string().min(3, {
     message: "Username must be at least 3 characters.",
   }),
-  email: z.string().email({
+  email: z.email({
     message: "Invalid email format.",
   }),
   fullname: z.string().min(1, {
@@ -38,6 +39,9 @@ const formSchema = z.object({
 }).refine(data => data.password === data.confirmPassword, {
   message: "Password and password confirmation do not match.",
   path: ["confirmPassword"],
+}).refine(data => zxcvbn(data.password).score >= 2, {
+  message: "Password is too weak. Please add numbers, symbols, or mix case.",
+  path: ["password"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -59,7 +63,28 @@ const Register: React.FC = () => {
       password: "",
       confirmPassword: "",
     },
+    mode: "onChange",
   });
+
+  const passwordValue = form.watch("password");
+
+  const getStrengthStats = (pass: string) => {
+    if (!pass) return { score: 0, label: "", color: "bg-neutral-200" };
+
+    const result = zxcvbn(pass);
+    const score = result.score;
+
+    switch (score) {
+      case 0: return { score, label: "Very Weak", color: "bg-red-500" };
+      case 1: return { score, label: "Weak", color: "bg-orange-500" };
+      case 2: return { score, label: "Fair", color: "bg-yellow-500" };
+      case 3: return { score, label: "Good", color: "bg-blue-500" };
+      case 4: return { score, label: "Strong", color: "bg-green-500" };
+      default: return { score: 0, label: "", color: "bg-neutral-200" };
+    }
+  }
+
+  const strength = getStrengthStats(passwordValue);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -176,6 +201,19 @@ const Register: React.FC = () => {
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>
+                    {passwordValue && (
+                      <div className="space-y-1 mt-2">
+                        <div className="flex h-1.5 w-full bg-neutral-200 rounded-full overflow-hidden gap-1">
+                          <div className={`h-full flex-1 transition-all ${strength.score >= 0 ? strength.color : 'bg-transparent'}`}></div>
+                          <div className={`h-full flex-1 transition-all ${strength.score >= 2 ? strength.color : 'bg-neutral-200'}`}></div>
+                          <div className={`h-full flex-1 transition-all ${strength.score >= 3 ? strength.color : 'bg-neutral-200'}`}></div>
+                          <div className={`h-full flex-1 transition-all ${strength.score >= 4 ? strength.color : 'bg-neutral-200'}`}></div>
+                        </div>
+                        <p className={`text-xs font-medium text-right ${strength.color.replace('bg-', 'text-')}`}>
+                          Strength: {strength.label}
+                        </p>
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
