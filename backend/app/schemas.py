@@ -60,3 +60,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
   username: str | None = None
+
+class PasswordResetConfirm(BaseModel):
+  token: str
+  new_password: str

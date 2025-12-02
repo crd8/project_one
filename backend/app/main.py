@@ -125,21 +125,21 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     token_type: str = payload.get("type")
       
     if username is None or token_type != "email_verification":
-      raise HTTPException(status_code=400, detail="Token invalid")
+      return RedirectResponse(url="http://localhost:3000/login?status=invalid_token")
   except JWTError:
-    raise HTTPException(status_code=400, detail="Token expired or invalid")
+    return RedirectResponse(url="http://localhost:3000/login?status=invalid_token")
       
   user = crud.get_user_by_username(db, username=username)
   if not user:
-    raise HTTPException(status_code=404, detail="User not found")
+    return RedirectResponse(url="http://localhost:3000/login?status=invalid_token")
       
   if user.is_active:
-    return JSONResponse(content={"message": "The account is already active. Please log in."})
+    return RedirectResponse(url="http://localhost:3000/login?status=already_active")
       
   user.is_active = True
   db.commit()
   
-  return JSONResponse(content={"message": "Email successfully verified! Your account is now active."})
+  return RedirectResponse(url="http://localhost:3000/login?status=email_verified")
 
 @app.post("/auth/2fa/setup", response_model=schemas.TwoFactorSetuoResponse)
 async def setup_2fa(
@@ -483,3 +483,77 @@ async def logout(
 @app.get("/users/me/", response_model=schemas.User)
 async def read_users_me(current_user: Annotated[schemas.User, Depends(auth.get_current_user)]):
   return current_user
+
+@app.post("/auth/password-reset/request")
+async def request_password_reset(
+  body: schemas.EmailSchema,
+  db: Session = Depends(get_db),
+):
+  user = crud.get_user_by_email(db, email=body.email)
+
+  if not user:
+    return {"message": "If the email is registered, a password reset link has been sent."}
+  
+  reset_token = auth.create_access_token(
+    data={"sub": user.username, "type": "password_reset"},
+    expires_delta=timedelta(minutes=15)
+  )
+
+  reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
+
+  html = f"""
+  <h3>Password Reset Request</h3>
+  <p>Hello {user.fullname},</p>
+  <p>We received a request to reset your account password.</p>
+  <p>Click the button below to create a new password:</p>
+  <a href="{reset_link}" style="padding: 10px 20px; background-color: #dc2626; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
+  <p>This link is valid for 15 minutes.</p>
+  <p>If you didn't request this, please ignore this email.</p>
+  """
+
+  message = MessageSchema(
+    subject="Reset Password = MyApp",
+    recipients=[user.email],
+    body=html,
+    subtype=MessageType.html
+  )
+
+  fm = FastMail(conf)
+  await fm.send_message(message)
+
+  return {"message": "If the email is registered, a password reset link has been sent."}
+
+@app.post("/auth/password-reset/confirm")
+async def confirm_password_reset(
+  body: schemas.PasswordResetConfirm,
+  db: Session = Depends(get_db)
+):
+  try:
+    payload = jwt.decode(body.token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+    username: str = payload.get("sub")
+    token_type: str = payload.get("type")
+
+    if username is None or token_type != "password_reset":
+      raise HTTPException(
+        status_code=400,
+        detail="Invalid token type"
+      )
+  except JWTError:
+    raise HTTPException(
+      status_code=400,
+      detail="Token expired or invalid"
+    )
+  
+  user = crud.get_user_by_username(db, username=username)
+  if not user:
+    raise HTTPException(
+      status_code=404,
+      detail="User not found"
+    )
+  
+  user.hashed_password = security.get_password_hash(body.new_password)
+  db.commit()
+
+  crud.delete_all_refresh_tokens_by_user(db, user_id=user.id)
+
+  return {"message": "Password has been reset successfully. Please log in with your new password."}

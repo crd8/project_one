@@ -6,6 +6,8 @@ import Register from './components/Register';
 import Profile from './components/Profile';
 import { useAuth } from './context/AuthContext';
 import SessionTimer from './components/SessionTimer';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import { Button } from './components/ui/button';
 import { Toaster } from "./components/ui/sonner";
 
@@ -101,6 +103,22 @@ const App: React.FC = () => {
                   <Register />
                 </PublicRoute>
               }
+            />
+            <Route 
+              path="/forgot-password" 
+              element={
+                <PublicRoute>
+                  <ForgotPassword />
+                </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/reset-password" 
+              element={
+                <PublicRoute>
+                  <ResetPassword />
+                </PublicRoute>
+              } 
             />
             <Route
               path="/profile"

@@ -70,3 +70,7 @@ def delete_refresh_token_by_hash(db: Session, token_hash: str):
         db.delete(db_token)
         db.commit()
     return db_token
+
+def delete_all_refresh_tokens_by_user(db: Session, user_id: uuid.UUID):
+    db.query(models.RefreshToken).filter(models.RefreshToken.user_id == user_id).delete()
+    db.commit()

@@ -166,6 +166,17 @@ const Login: React.FC = () => {
       setDialogMessage("The reset link is invalid or has expired.");
       setShowSuccessDialog(true);
       setSearchParams({});
+    } else if (status === 'email_verified') {
+      setDialogMessage("Email successfully verified! Your account is now active. Please log in.");
+      setShowSuccessDialog(true);
+    }
+    else if (status === 'already_active') {
+      setDialogMessage("This account is already active. Please log in.");
+      setShowSuccessDialog(true);
+    }
+
+    if (status) {
+      setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
 
@@ -215,7 +226,12 @@ const Login: React.FC = () => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <div className='flex items-center justify-between'>
+                      <FormLabel>Password</FormLabel>
+                      <Link to="/forgot-password" className="text-xs text-blue-600 hover:underline">
+                        Forgot Password?
+                      </Link>
+                    </div>
                     <FormControl><Input type="password" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
