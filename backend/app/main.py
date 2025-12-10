@@ -29,7 +29,7 @@ conf = ConnectionConfig(
   MAIL_PASSWORD="",
   MAIL_FROM="noreply@myapp.com",
   MAIL_PORT="1025",
-  MAIL_SERVER="mailpit", #nama service di docker-compose
+  MAIL_SERVER="mailpit",
   MAIL_STARTTLS=False,
   MAIL_SSL_TLS=False,
   USE_CREDENTIALS=False,
@@ -522,6 +522,124 @@ async def request_password_reset(
   await fm.send_message(message)
 
   return {"message": "If the email is registered, a password reset link has been sent."}
+
+@app.put("/users/me", response_model=schemas.User)
+async def update_user_me(
+  body: schemas.UserUpdate,
+  background_tasks: BackgroundTasks,
+  current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
+  db: Session = Depends(get_db)
+):
+
+  db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
+
+  if not security.verify_password(body.password, db_user.hashed_password):
+    raise HTTPException(
+      status_code=400, detail="Password salah. Perubahan ditolak."
+    )
+
+  db_user.fullname = body.fullname
+  
+  if body.email != db_user.email:
+    existing_user = crud.get_user_by_email(db, email=body.email)
+    if existing_user:
+      raise HTTPException(
+        status_code=400,
+        detail="Email already in use"
+      )
+    
+    db_user.new_email = body.email
+
+    verify_token = auth.create_access_token(
+      data={"sub": db_user.username, "new_email": body.email, "type": "change_email"},
+      expires_delta=timedelta(hours=1)
+    )
+
+    verify_link = f"http://localhost:8000/auth/verify-change-email?token={verify_token}"
+
+    verify_html = f"""
+    <h3>Confirm Email Changes</h3>
+    <p>Hello {db_user.fullname},</p>
+    <p>We received a request to change your email to: <b>{body.email}</b></p>
+    <p>Click the button below to verify this new email:</p>
+    <a href="{verify_link}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">New Email Verification</a>
+    <p>If you didn't ask for this, just ignore it.</p>
+    """
+
+    alert_html = f"""
+    <h3>Security Alert</h3>
+    <p>Someone (maybe you) asked to change your account email to: <b>{body.email}</b></p>
+    <p>If this is NOT you, change your password immediately because your account may have been accessed by someone else.</p>
+    """
+
+    fm = FastMail(conf)
+
+    msg_verify = MessageSchema(
+      subject="New Email Verification - MyApp",
+      recipients=[body.email],
+      body=verify_html,
+      subtype=MessageType.html
+    )
+    background_tasks.add_task(fm.send_message, msg_verify)
+
+    msg_alert = MessageSchema(
+      subject="IMPORTANT: Email Change Request",
+      recipients=[db_user.email],
+      body=alert_html,
+      subtype=MessageType.html
+    )
+    background_tasks.add_task(fm.send_message, msg_alert)
+
+  db.commit()
+  db.refresh(db_user)
+  return db_user
+
+@app.get("/auth/verify-change-email")
+async def verify_change_email(token: str, db: Session = Depends(get_db)):
+  try:
+    payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+    username: str = payload.get("sub")
+    new_email_from_token: str = payload.get("new_email")
+    token_type: str = payload.get("type")
+
+    if not username or not new_email_from_token or token_type != "change_email":
+      return RedirectResponse(url="http://localhost:3000/profile?status=invalid_token")
+          
+  except JWTError:
+    return RedirectResponse(url="http://localhost:3000/profile?status=invalid_token")
+
+  user = crud.get_user_by_username(db, username=username)
+  if not user:
+    return RedirectResponse(url="http://localhost:3000/profile?status=error")
+
+  if user.new_email != new_email_from_token:
+    return RedirectResponse(url="http://localhost:3000/profile?status=invalid_token")
+
+  user.email = user.new_email
+  user.new_email = None
+  
+  db.commit()
+
+  return RedirectResponse(url="http://localhost:3000/profile?status=email_updated")
+
+@app.post("/users/me/password")
+async def change_password(
+  body: schemas.ChangePasswordRequest,
+  current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
+  db: Session = Depends(get_db)
+):
+  
+  db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
+
+  if not security.verify_password(body.current_password, db_user.hashed_password):
+    raise HTTPException(
+      status_code=400,
+      detail="Current password is incorrect"
+    )
+  
+  db_user.hashed_password = security.get_password_hash(body.new_password)
+  db.commit()
+  return {"message": "Password changed successfully"}
 
 @app.post("/auth/password-reset/confirm")
 async def confirm_password_reset(

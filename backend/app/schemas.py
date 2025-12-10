@@ -64,3 +64,12 @@ class TokenData(BaseModel):
 class PasswordResetConfirm(BaseModel):
   token: str
   new_password: str
+
+class UserUpdate(BaseModel):
+  fullname: str
+  email: EmailStr
+  password: str
+
+class ChangePasswordRequest(BaseModel):
+  current_password: str
+  new_password: str

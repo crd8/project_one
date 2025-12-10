@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
+import { useSearchParams } from 'react-router-dom';;
 import { useAuth } from '../context/AuthContext';
 import ActiveSessions from './ActiveSessions';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Button } from './ui/button';
-import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Pencil, KeyRound } from 'lucide-react';
+import { toast } from "sonner";
 
 import TwoFactorSetup from './TwoFactorSetup';
 import TwoFactorDisable from './TwoFactorDisable';
+
+import EditProfile from './EditProfile';
+import ChangePassword from './ChangePassword';
 
 const ProfileDataRow: React.FC<{ label: string; value: string | number | boolean }> = ({ label, value }) => (
   <div className="flex justify-between border-b py-2 text-sm">
@@ -19,12 +24,30 @@ const Profile: React.FC = () => {
   const { user, login, getAccessToken } = useAuth();
   const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
   const [isDisableOpen, setIsDisableOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   if (!user) return <p>Loading profile data...</p>;
 
   const joinedDate = new Date(user.created_at).toLocaleString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric'
   });
+
+  React.useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'email_updated') {
+      toast.success("Email Updated Successfully!", {
+        description: "Your account email has been changed."
+      });
+      setSearchParams({});
+    } else if (status === 'invalid_token') {
+      toast.error("Email Verification Failed", {
+        description: "Expired or invalid link."
+      });
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleDisableSuccess = () => {
     if (user) {
@@ -40,6 +63,9 @@ const Profile: React.FC = () => {
           <CardDescription>
             Your account details registered in the system.
           </CardDescription>
+          <Button variant="outline" size="icon" onClick={() => setIsEditProfileOpen(true)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <dl className="space-y-2">
@@ -68,7 +94,12 @@ const Profile: React.FC = () => {
             <ProfileDataRow label="Created at" value={joinedDate} />
           </dl>
         </CardContent>
-        <CardFooter>
+        <CardFooter className='flex-col gap-3'>
+          <Button variant="outline" className="w-full" onClick={() => setIsChangePasswordOpen(true)}>
+            <KeyRound className="w-4 h-4 mr-2" />
+            Change Password
+          </Button>
+          
           {!user.is_2fa_enabled ? (
             <Button 
               variant="outline" 
@@ -96,6 +127,14 @@ const Profile: React.FC = () => {
         </CardFooter>
       </Card>
       <ActiveSessions />
+      <EditProfile 
+        isOpen={isEditProfileOpen} 
+        onOpenChange={setIsEditProfileOpen} 
+      />
+      <ChangePassword 
+        isOpen={isChangePasswordOpen} 
+        onOpenChange={setIsChangePasswordOpen} 
+      />
       <TwoFactorSetup
         isOpen={is2FAModalOpen}
         onOpenChange={setIs2FAModalOpen}

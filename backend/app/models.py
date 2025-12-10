@@ -12,6 +12,7 @@ class User(Base):
   username = Column(String, unique=True, index=True, nullable=False)
   fullname = Column(String, nullable=False)
   email = Column(String, unique=True, index=True, nullable=False)
+  new_email = Column(String, nullable=True)
   hashed_password = Column(String, nullable=False)
   totp_secret = Column(String, nullable=True)
   is_2fa_enabled = Column(Boolean, default=False)
