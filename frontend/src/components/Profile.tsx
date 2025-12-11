@@ -12,6 +12,7 @@ import TwoFactorDisable from './TwoFactorDisable';
 
 import EditProfile from './EditProfile';
 import ChangePassword from './ChangePassword';
+import AvatarUpload from './AvatarUpload';
 
 const ProfileDataRow: React.FC<{ label: string; value: string | number | boolean }> = ({ label, value }) => (
   <div className="flex justify-between border-b py-2 text-sm">
@@ -68,6 +69,7 @@ const Profile: React.FC = () => {
           </Button>
         </CardHeader>
         <CardContent>
+          <AvatarUpload />
           <dl className="space-y-2">
             <ProfileDataRow label="ID" value={user.id} />
             <ProfileDataRow label="Username" value={user.username} />

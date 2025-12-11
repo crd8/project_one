@@ -19,6 +19,7 @@ class User(BaseModel):
   is_2fa_enabled: bool
   created_at: datetime
   updated_at: Optional[datetime]
+  profile_image: Optional[str] = None
 
   class Config:
     from_attributes = True

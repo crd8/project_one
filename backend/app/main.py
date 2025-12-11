@@ -1,12 +1,13 @@
 from typing import Annotated
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException, status, Response, Request, Cookie, Body, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, status, Response, Request, Cookie, Body, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import RedirectResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import timedelta
@@ -18,6 +19,9 @@ import qrcode
 import io
 import base64
 import uuid
+import shutil
+import os
+import glob
 
 from . import auth, crud, models, schemas, security
 from .database import SessionLocal, engine, get_db
@@ -58,6 +62,9 @@ async def lifespan(app: FastAPI):
   print("Server shutdown.")
 
 app = FastAPI(lifespan=lifespan)
+
+os.makedirs("static/profile_images", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
   CORSMiddleware,
@@ -675,3 +682,54 @@ async def confirm_password_reset(
   crud.delete_all_refresh_tokens_by_user(db, user_id=user.id)
 
   return {"message": "Password has been reset successfully. Please log in with your new password."}
+
+@app.post("/users/me/avatar", response_model=schemas.User)
+async def upload_avatar(
+  current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
+  db: Session = Depends(get_db),
+  file: UploadFile = File(...)
+):
+  
+  if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+    raise HTTPException(
+      status_code=400,
+      detail="Invalid image format. Only JPEG, PNG, and WEBP are allowed."
+    )
+  
+  BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+  PROFILE_IMAGES_DIR = os.path.join(os.path.dirname(BASE_DIR), "static", "profile_images")
+  os.makedirs(PROFILE_IMAGES_DIR, exist_ok=True)
+
+  file_pattern = os.path.join(PROFILE_IMAGES_DIR, f"avatar_{current_user.id}.*")
+
+  existing_files = glob.glob(file_pattern)
+
+  for f in existing_files:
+    try:
+      os.remove(f)
+      print(f"Deleted old avatar file: {f}")
+    except OSError as e:
+      print(f"Error deleting file {f}: {e}")
+      
+  file_ext = file.filename.split(".")[-1]
+  filename = f"avatar_{current_user.id}.{file_ext}"
+  file_path = os.path.join(PROFILE_IMAGES_DIR, filename)
+
+  try:
+    with open(file_path, "wb") as buffer:
+      shutil.copyfileobj(file.file, buffer)
+  except Exception:
+    raise HTTPException(
+      status_code=500,
+      detail="Failed to save image."
+    )
+  
+  db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    
+  image_url = f"/static/profile_images/{filename}"
+  db_user.profile_image = image_url
+  
+  db.commit()
+  db.refresh(db_user)
+  
+  return db_user
