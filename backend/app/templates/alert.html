@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h3 class="alert">⚠️ Security Warning</h3>
+    <p>Hello {{ fullname }},</p>
+    <p>Someone (probably you) just requested a {{ change_type }} change to your account.</p>
+    <p>Change details: <strong>{{ detail }}</strong></p>
+    
+    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    
+    <p><strong>If this is NOT you:</strong></p>
+    <p>Your account may have been accessed by someone else. Change your password immediately and enable 2FA.</p>
+{% endblock %}

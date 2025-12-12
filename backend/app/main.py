@@ -10,6 +10,7 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from pathlib import Path
 from datetime import timedelta
 from jose import JWTError, jwt
 
@@ -28,6 +29,8 @@ from .database import SessionLocal, engine, get_db
 from .auth import ACCESS_TOKEN_EXPIRE_MINUTES
 from .security import verify_password
 
+TEMPLATE_FOLDER = Path(__file__).parent / "templates"
+
 conf = ConnectionConfig(
   MAIL_USERNAME="",
   MAIL_PASSWORD="",
@@ -38,6 +41,7 @@ conf = ConnectionConfig(
   MAIL_SSL_TLS=False,
   USE_CREDENTIALS=False,
   VALIDATE_CERTS=False,
+  TEMPLATE_FOLDER=TEMPLATE_FOLDER
 )
 
 @asynccontextmanager
@@ -98,22 +102,18 @@ def create_user(
 
   verify_link = f"http://localhost:8000/auth/verify-email?token={verify_token}"
 
-  html = f"""
-  <h3>WELCOME, {new_user.fullname}!</h3>
-  <p>Thank you for registering. Please click the button below to activate your account:</p>
-  <a href="{verify_link}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Email Verification</a>
-  <p>Link valid for 24 hours.</p>
-  """
-
   message = MessageSchema(
     subject="MyApp Account Verification",
     recipients=[new_user.email],
-    body=html,
+    template_body={
+      "fullname": new_user.fullname,
+      "link": verify_link
+    },
     subtype=MessageType.html
   )
   
   fm = FastMail(conf)
-  background_tasks.add_task(fm.send_message, message)
+  background_tasks.add_task(fm.send_message, message, template_name="verify_email.html")
   
   return new_user
   
@@ -235,23 +235,18 @@ async def request_2fa_reset(
 
   reset_link = f"http://localhost:8000/auth/2fa/confirm-reset?token={reset_token}"
 
-  html = f"""
-  <p>Hello {user.fullname},</p>
-  <p>Someone asked to turn off 2FA on your account.</p>
-  <p>If this is you, please click the link below to turn off 2FA:</p>
-  <a href="{reset_link}">Turn Off My 2FA</a>
-  <p>This link expires in 15 minutes.</p>
-  """
-
   message = MessageSchema(
     subject="Reset 2FA - MyApp",
     recipients=[user.email],
-    body=html,
+    template_body={
+      "fullname": user.fullname,
+      "link": reset_link
+    },
     subtype=MessageType.html
   )
 
   fm = FastMail(conf)
-  await fm.send_message(message)
+  await fm.send_message(message, template_name="reset_2fa.html")
 
   return {"message": "If the email is registered, a reset link has been sent."}
 
@@ -508,25 +503,18 @@ async def request_password_reset(
 
   reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
 
-  html = f"""
-  <h3>Password Reset Request</h3>
-  <p>Hello {user.fullname},</p>
-  <p>We received a request to reset your account password.</p>
-  <p>Click the button below to create a new password:</p>
-  <a href="{reset_link}" style="padding: 10px 20px; background-color: #dc2626; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
-  <p>This link is valid for 15 minutes.</p>
-  <p>If you didn't request this, please ignore this email.</p>
-  """
-
   message = MessageSchema(
     subject="Reset Password = MyApp",
     recipients=[user.email],
-    body=html,
+    template_body={
+      "fullname": user.fullname,
+      "link": reset_link
+    },
     subtype=MessageType.html
   )
 
   fm = FastMail(conf)
-  await fm.send_message(message)
+  await fm.send_message(message, template_name="reset_password.html")
 
   return {"message": "If the email is registered, a password reset link has been sent."}
 
@@ -542,7 +530,7 @@ async def update_user_me(
 
   if not security.verify_password(body.password, db_user.hashed_password):
     raise HTTPException(
-      status_code=400, detail="Password salah. Perubahan ditolak."
+      status_code=400, detail="Incorrect password. Change rejected."
     )
 
   db_user.fullname = body.fullname
@@ -564,38 +552,31 @@ async def update_user_me(
 
     verify_link = f"http://localhost:8000/auth/verify-change-email?token={verify_token}"
 
-    verify_html = f"""
-    <h3>Confirm Email Changes</h3>
-    <p>Hello {db_user.fullname},</p>
-    <p>We received a request to change your email to: <b>{body.email}</b></p>
-    <p>Click the button below to verify this new email:</p>
-    <a href="{verify_link}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">New Email Verification</a>
-    <p>If you didn't ask for this, just ignore it.</p>
-    """
-
-    alert_html = f"""
-    <h3>Security Alert</h3>
-    <p>Someone (maybe you) asked to change your account email to: <b>{body.email}</b></p>
-    <p>If this is NOT you, change your password immediately because your account may have been accessed by someone else.</p>
-    """
-
     fm = FastMail(conf)
 
     msg_verify = MessageSchema(
       subject="New Email Verification - MyApp",
       recipients=[body.email],
-      body=verify_html,
+      template_body={
+        "fullname": db_user.fullname,
+        "new_email": body.email,
+        "link": verify_link
+      },
       subtype=MessageType.html
     )
-    background_tasks.add_task(fm.send_message, msg_verify)
+    background_tasks.add_task(fm.send_message, msg_verify, template_name="change_email.html")
 
     msg_alert = MessageSchema(
       subject="IMPORTANT: Email Change Request",
       recipients=[db_user.email],
-      body=alert_html,
+      template_body={
+        "fullname": db_user.fullname,
+        "change_type": "email address",
+        "detail": f"Requested new email: {body.email}"
+      },
       subtype=MessageType.html
     )
-    background_tasks.add_task(fm.send_message, msg_alert)
+    background_tasks.add_task(fm.send_message, msg_alert, template_name="alert.html")
 
   db.commit()
   db.refresh(db_user)

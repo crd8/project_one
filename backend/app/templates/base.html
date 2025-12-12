@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>MyApp Notification</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .header { background-color: #0f172a; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; color: #334155; line-height: 1.6; }
+        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; }
+        .btn { display: inline-block; padding: 12px 24px; background-color: #0f172a; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+        .btn:hover { background-color: #334155; }
+        h1, h2, h3 { color: #0f172a; margin-top: 0; }
+        .alert { color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>MyApp Security</h2>
+        </div>
+
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2025 MyApp</p>
+            <p>If you didn't ask for this email, just ignore it.</p>
+        </div>
+    </div>
+</body>
+</html>

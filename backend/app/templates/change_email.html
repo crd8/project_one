@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h3>Confirm Email Changes</h3>
+    <p>Hello {{ fullname }},</p>
+    <p>We received a request to change your account email to: <strong>{{ new_email }}</strong></p>
+    <p>Please verify this new email by clicking the button below:</p>
+    
+    <div style="text-align: center;">
+        <a href="{{ link }}" class="btn">New Email Verification</a>
+    </div>
+{% endblock %}
