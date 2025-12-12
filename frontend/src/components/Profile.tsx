@@ -62,7 +62,7 @@ const Profile: React.FC = () => {
         <CardHeader>
           <CardTitle>User Profile</CardTitle>
           <CardDescription>
-            Your account details registered in the system.
+            Details of your account registered in the system.
           </CardDescription>
           <Button variant="outline" size="icon" onClick={() => setIsEditProfileOpen(true)}>
             <Pencil className="h-4 w-4" />

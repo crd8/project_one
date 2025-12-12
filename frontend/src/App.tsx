@@ -34,10 +34,10 @@ const HomePage = () => {
 
     if (user) {
       const displayName = user.fullname ? user.fullname : user.username;
-      return <h2>Selamat Datang, {displayName}!</h2>;
+      return <h2>Welcome, {displayName}!</h2>;
     }
 
-    return <h2>Selamat Datang! Silakan Login atau Register.</h2>;
+    return <h2>Welcome! Please log in or register.</h2>;
 };
 
 const App: React.FC = () => {

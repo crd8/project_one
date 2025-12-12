@@ -3,14 +3,14 @@
 {% block content %}
     <h3>Request to Disable 2FA</h3>
     <p>Hello {{ fullname }},</p>
-    <p>We received a request to turn off 2-Factor Authentication (2FA) on your account because the device was lost or inaccessible.</p>
-    <p>Click the button below to turn off 2FA so you can log back in with just your password:</p>
+    <p>We have received a request to disable Two-Factor Authentication (2FA) on your account because the device is lost or inaccessible.</p>
+    <p>Click the button below to disable Two-Factor Authentication (2FA) so you can log back in with just your password:</p>
     
     <div style="text-align: center;">
-        <a href="{{ link }}" class="btn">Turn Off My 2FA</a>
+        <a href="{{ link }}" class="btn">Turn off Two-Factor Authentication (2FA)</a>
     </div>
     
     <p style="margin-top: 20px; font-size: 12px; color: #64748b;">
-        This link is valid for 15 minutes. If you didn't request this, please ignore this email to maintain account security.
+        This link is valid for 15 minutes. If you did not request this link, please ignore this email to keep your account secure.
     </p>
 {% endblock %}

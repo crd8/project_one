@@ -71,7 +71,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ isOpen, onOpenChange })
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Change Password</DialogTitle>
-          <DialogDescription>Ensure your account is using a long, random password to stay secure.</DialogDescription>
+          <DialogDescription>Ensure your account uses a long and random password to stay secure.</DialogDescription>
         </DialogHeader>
         
         <Form {...form}>

@@ -29,8 +29,10 @@ from .database import SessionLocal, engine, get_db
 from .auth import ACCESS_TOKEN_EXPIRE_MINUTES
 from .security import verify_password
 
+# template folder for emails templaye
 TEMPLATE_FOLDER = Path(__file__).parent / "templates"
 
+# Email configuration
 conf = ConnectionConfig(
   MAIL_USERNAME="",
   MAIL_PASSWORD="",
@@ -67,9 +69,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Static files (for profile images)
 os.makedirs("static/profile_images", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# CORS settings
 app.add_middleware(
   CORSMiddleware,
   allow_origins=["http://localhost:3000"],
@@ -78,6 +82,7 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
+# ------------------ for user registration ------------------
 @app.post("/users/", response_model=schemas.User, dependencies=[Depends(RateLimiter(times=10, hours=1))])
 def create_user(
   user: schemas.UserCreate,
@@ -124,6 +129,7 @@ def create_user(
   #   )
   # return crud.create_user(db=db, user=user)
 
+# ------------------ for email verification ------------------
 @app.get("/auth/verify-email")
 async def verify_email(token: str, db: Session = Depends(get_db)):
   try:
@@ -148,6 +154,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
   
   return RedirectResponse(url="http://localhost:3000/login?status=email_verified")
 
+# ------------------ for setup 2FA ------------------
 @app.post("/auth/2fa/setup", response_model=schemas.TwoFactorSetuoResponse)
 async def setup_2fa(
   current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
@@ -171,6 +178,7 @@ async def setup_2fa(
 
   return{ "secret": secret, "qr_code": img_str }
 
+# ------------------ for enable 2FA ------------------
 @app.post("/auth/2fa/enable")
 async def enable_2fa(
   verification: schemas.TwoFactorVerifyRequest,
@@ -196,6 +204,7 @@ async def enable_2fa(
   db.commit()
   return {"message": "2FA enabled successfully"}
 
+# ------------------ for disable 2FA ------------------
 @app.post("/auth/2fa/disable")
 async def disable_2fa(
   request: schemas.Disable2FARequest,
@@ -216,6 +225,7 @@ async def disable_2fa(
 
   return {"message": "2FA has been disabled"}
 
+# ------------------ for 2FA reset request ------------------
 @app.post("/auth/2fa/request-reset")
 async def request_2fa_reset(
   body: schemas.EmailSchema,
@@ -250,6 +260,7 @@ async def request_2fa_reset(
 
   return {"message": "If the email is registered, a reset link has been sent."}
 
+# ------------------ for 2FA reset confirmation ------------------
 @app.get("/auth/2fa/confirm-reset")
 async def confirm_2fa_reset(
   token: str, 
@@ -282,6 +293,7 @@ async def confirm_2fa_reset(
 
   return RedirectResponse(url="http://localhost:3000/login?status=reset_success")
 
+# ------------------ for login ------------------
 @app.post("/token", response_model=schemas.LoginResponse, dependencies=[Depends(RateLimiter(times=5, minutes=1))])
 async def login_for_access_token(
   response: Response,
@@ -331,6 +343,7 @@ async def login_for_access_token(
 
   return {"access_token": access_token, "user": user, "require_2fa": False}
 
+# ------------------ for 2FA login verification ------------------
 @app.post("/auth/2fa/verify-login", response_model=schemas.LoginResponse)
 async def verify_2fa_login(
   response: Response,
@@ -388,7 +401,8 @@ async def verify_2fa_login(
   )
 
   return {"access_token": access_token, "user": user, "require_2fa": False}\
-  
+
+# ------------------ for get active sessions ------------------
 @app.get("/auth/sessions", response_model=list[schemas.SessionResponse])
 async def get_active_sessions(
   request: Request,
@@ -416,6 +430,7 @@ async def get_active_sessions(
 
   return result
 
+# ------------------ for revoke session ------------------
 @app.delete("/auth/sessions/{session_id}")
 async def revoke_session(
   session_id: str,
@@ -438,7 +453,8 @@ async def revoke_session(
     )
   
   return {"message": "Session revoked successfully"}
-    
+
+# ------------------ for refresh access token ------------------
 @app.post("/token/refresh", response_model=schemas.Token)
 async def refresh_access_token(
   refresh_token: Annotated[str | None, Cookie()] = None,
@@ -486,6 +502,7 @@ async def logout(
 async def read_users_me(current_user: Annotated[schemas.User, Depends(auth.get_current_user)]):
   return current_user
 
+# ------------------ for password reset request ------------------
 @app.post("/auth/password-reset/request")
 async def request_password_reset(
   body: schemas.EmailSchema,
@@ -518,70 +535,79 @@ async def request_password_reset(
 
   return {"message": "If the email is registered, a password reset link has been sent."}
 
-@app.put("/users/me", response_model=schemas.User)
-async def update_user_me(
-  body: schemas.UserUpdate,
+# ------------------ for update fullname ------------------
+@app.put("/users/me/profile", response_model=schemas.User)
+async def update_user_profile(
+  body: schemas.UserProfileUpdate,
+  current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
+  db: Session = Depends(get_db)
+):
+  
+  db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
+  db_user.fullname = body.fullname
+  db.commit()
+  db.refresh(db_user)
+  return db_user
+
+# ------------------ for change email ------------------
+@app.put("/users/me/email", response_model=schemas.User)
+async def request_email_change(
+  body: schemas.UserEmailUpdate,
   background_tasks: BackgroundTasks,
   current_user: Annotated[schemas.User, Depends(auth.get_current_user)],
   db: Session = Depends(get_db)
 ):
-
   db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
 
   if not security.verify_password(body.password, db_user.hashed_password):
-    raise HTTPException(
-      status_code=400, detail="Incorrect password. Change rejected."
-    )
+    raise HTTPException(status_code=400, detail="Incorrect password.")
 
-  db_user.fullname = body.fullname
+  if body.new_email == db_user.email:
+    raise HTTPException(status_code=400, detail="The new email is the same as the old email.")
+
+  existing_user = crud.get_user_by_email(db, email=body.new_email)
+  if existing_user:
+    raise HTTPException(status_code=400, detail="This email address is already in use.")
+
+  db_user.new_email = body.new_email
   
-  if body.email != db_user.email:
-    existing_user = crud.get_user_by_email(db, email=body.email)
-    if existing_user:
-      raise HTTPException(
-        status_code=400,
-        detail="Email already in use"
-      )
-    
-    db_user.new_email = body.email
+  verify_token = auth.create_access_token(
+    data={"sub": db_user.username, "new_email": body.new_email, "type": "change_email"},
+    expires_delta=timedelta(hours=1)
+  )
+  verify_link = f"http://localhost:8000/auth/verify-change-email?token={verify_token}"
 
-    verify_token = auth.create_access_token(
-      data={"sub": db_user.username, "new_email": body.email, "type": "change_email"},
-      expires_delta=timedelta(hours=1)
-    )
+  fm = FastMail(conf)
 
-    verify_link = f"http://localhost:8000/auth/verify-change-email?token={verify_token}"
+  msg_verify = MessageSchema(
+    subject="New Email Verification - MyApp",
+    recipients=[body.new_email],
+    template_body={
+      "fullname": db_user.fullname,
+      "new_email": body.new_email,
+      "link": verify_link
+    },
+    subtype=MessageType.html
+  )
+  background_tasks.add_task(fm.send_message, msg_verify, template_name="change_email.html")
 
-    fm = FastMail(conf)
-
-    msg_verify = MessageSchema(
-      subject="New Email Verification - MyApp",
-      recipients=[body.email],
-      template_body={
-        "fullname": db_user.fullname,
-        "new_email": body.email,
-        "link": verify_link
-      },
-      subtype=MessageType.html
-    )
-    background_tasks.add_task(fm.send_message, msg_verify, template_name="change_email.html")
-
-    msg_alert = MessageSchema(
-      subject="IMPORTANT: Email Change Request",
-      recipients=[db_user.email],
-      template_body={
-        "fullname": db_user.fullname,
-        "change_type": "email address",
-        "detail": f"Requested new email: {body.email}"
-      },
-      subtype=MessageType.html
-    )
-    background_tasks.add_task(fm.send_message, msg_alert, template_name="alert.html")
+  msg_alert = MessageSchema(
+    subject="Security Alert: Email Change Request",
+    recipients=[db_user.email],
+    template_body={
+      "fullname": db_user.fullname, 
+      "change_type": "Email Address",
+      "detail": f"changing the email address to {body.new_email}"
+    },
+    subtype=MessageType.html
+  )
+  background_tasks.add_task(fm.send_message, msg_alert, template_name="alert.html")
 
   db.commit()
   db.refresh(db_user)
   return db_user
 
+# ------------------ for change email verification ------------------
 @app.get("/auth/verify-change-email")
 async def verify_change_email(token: str, db: Session = Depends(get_db)):
   try:
@@ -610,6 +636,7 @@ async def verify_change_email(token: str, db: Session = Depends(get_db)):
 
   return RedirectResponse(url="http://localhost:3000/profile?status=email_updated")
 
+# ------------------ for change password ------------------
 @app.post("/users/me/password")
 async def change_password(
   body: schemas.ChangePasswordRequest,
@@ -664,6 +691,7 @@ async def confirm_password_reset(
 
   return {"message": "Password has been reset successfully. Please log in with your new password."}
 
+# ------------------ for upload profile image ------------------
 @app.post("/users/me/avatar", response_model=schemas.User)
 async def upload_avatar(
   current_user: Annotated[schemas.User, Depends(auth.get_current_user)],

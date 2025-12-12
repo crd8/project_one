@@ -66,9 +66,11 @@ class PasswordResetConfirm(BaseModel):
   token: str
   new_password: str
 
-class UserUpdate(BaseModel):
+class UserProfileUpdate(BaseModel):
   fullname: str
-  email: EmailStr
+
+class UserEmailUpdate(BaseModel):
+  new_email: EmailStr
   password: str
 
 class ChangePasswordRequest(BaseModel):
