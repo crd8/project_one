@@ -53,31 +53,31 @@ const EditProfile: React.FC<EditProfileProps> = ({ isOpen, onOpenChange }) => {
 
   React.useEffect(() => {
     if (isOpen && user) {
-        formName.reset({ fullname: user.fullname });
-        formEmail.reset({ new_email: user.email, password: "" });
+      formName.reset({ fullname: user.fullname });
+      formEmail.reset({ new_email: user.email, password: "" });
     }
   }, [isOpen, user]);
 
   const onNameSubmit = async (values: z.infer<typeof nameSchema>) => {
     try {
-        const { data } = await api.put('/users/me/profile', values);
-        
-        toast.success("Full name has been successfully updated.");
+      const { data } = await api.put('/users/me/profile', values);
+      
+      toast.success("Full name has been successfully updated.");
 
-        if (user) login({ ...user, fullname: data.fullname }, getAccessToken() || "");
-        onOpenChange(false);
+      if (user) login({ ...user, fullname: data.fullname }, getAccessToken() || "");
+      onOpenChange(false);
     } catch (error) {
-        toast.error("Failed to update name.");
+      toast.error("Failed to update name.");
     }
   };
 
   const onEmailSubmit = async (values: z.infer<typeof emailSchema>) => {
     try {
-        await api.put('/users/me/email', values);
-        
-        onOpenChange(false);
-        
-        setShowEmailSuccess(true);
+      await api.put('/users/me/email', values);
+      
+      onOpenChange(false);
+      
+      setShowEmailSuccess(true);
 
     } catch (error: any) {
         const msg = error.response?.data?.detail || "Gagal update email.";
@@ -102,67 +102,67 @@ const EditProfile: React.FC<EditProfileProps> = ({ isOpen, onOpenChange }) => {
 
             <TabsContent value="general" className="py-4">
               <Form {...formName}>
-                  <form onSubmit={formName.handleSubmit(onNameSubmit)} className="space-y-4">
-                      <FormField
-                          control={formName.control}
-                          name="fullname"
-                          render={({ field }) => (
-                              <FormItem>
-                                  <FormLabel>Fullname</FormLabel>
-                                  <FormControl><Input {...field} /></FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )}
-                      />
-                      <div className="flex justify-end">
-                          <Button type="submit" disabled={formName.formState.isSubmitting}>
-                              {formName.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              Save
-                          </Button>
-                      </div>
-                  </form>
+                <form onSubmit={formName.handleSubmit(onNameSubmit)} className="space-y-4">
+                  <FormField
+                    control={formName.control}
+                    name="fullname"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fullname</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={formName.formState.isSubmitting}>
+                      {formName.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save
+                    </Button>
+                  </div>
+                </form>
               </Form>
             </TabsContent>
 
             <TabsContent value="email" className="py-4">
               <Form {...formEmail}>
-                  <form onSubmit={formEmail.handleSubmit(onEmailSubmit)} className="space-y-4">
-                      
-                      {formEmail.formState.errors.root && (
-                          <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{formEmail.formState.errors.root.message}</div>
-                      )}
+                <form onSubmit={formEmail.handleSubmit(onEmailSubmit)} className="space-y-4">
+                    
+                  {formEmail.formState.errors.root && (
+                    <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{formEmail.formState.errors.root.message}</div>
+                  )}
 
-                      <FormField
-                          control={formEmail.control}
-                          name="new_email"
-                          render={({ field }) => (
-                              <FormItem>
-                                  <FormLabel>New Email</FormLabel>
-                                  <FormControl><Input {...field} /></FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )}
-                      />
+                  <FormField
+                    control={formEmail.control}
+                    name="new_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Email</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                      <FormField
-                          control={formEmail.control}
-                          name="password"
-                          render={({ field }) => (
-                              <FormItem>
-                                  <FormLabel>Current Password</FormLabel>
-                                  <FormControl><Input type="password" {...field} /></FormControl>
-                                  <FormMessage />
-                              </FormItem>
-                          )}
-                      />
+                  <FormField
+                    control={formEmail.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Current Password</FormLabel>
+                        <FormControl><Input type="password" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                      <div className="flex justify-end">
-                          <Button type="submit" variant="secondary" disabled={formEmail.formState.isSubmitting}>
-                              {formEmail.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              Send Verification
-                          </Button>
-                      </div>
-                  </form>
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="secondary" disabled={formEmail.formState.isSubmitting}>
+                      {formEmail.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send Verification
+                    </Button>
+                  </div>
+                </form>
               </Form>
             </TabsContent>
           </Tabs>
