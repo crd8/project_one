@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
-import { Button } from './ui/button';
+import api from '@/services/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Laptop, Smartphone, Globe, Loader2, LogOut } from 'lucide-react';
 import { toast } from "sonner";
-import { Badge } from "./ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +14,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle
-} from './ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 
 interface Session {
   id: string;

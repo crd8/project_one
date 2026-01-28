@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import api, { setAuthToken } from '../services/api';
+import api, { setAuthToken } from '@/services/api';
 import { jwtDecode } from 'jwt-decode';
 
 interface UserProfile {
@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAccessToken(null);
     setAuthToken(null);
     try {
-      await api.post('/logout');
+      await api.post('/auth/logout');
     } catch (error) {
       console.error('Logout API call failed', error);
     }
@@ -79,13 +79,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const { data } = await api.post('/token/refresh');
+        const { data } = await api.post('/auth/refresh');
         const newAccessToken = data.access_token;
         
         setAccessToken(newAccessToken);
         setAuthToken(newAccessToken);
         
-        const response = await api.get('/users/me/');
+        const response = await api.get('/users/me');
         setUser(response.data);
       } catch (error) {
         setUser(null);

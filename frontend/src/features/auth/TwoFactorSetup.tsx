@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
+import api from '@/services/api';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
 

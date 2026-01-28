@@ -5,7 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import { useAuth } from './context/AuthContext';
-import SessionTimer from './components/common/SessionTimer';
+import SessionTimer from './components/SessionTimer';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import { Button } from './components/ui/button';

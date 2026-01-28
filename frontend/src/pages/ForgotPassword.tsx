@@ -4,11 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import api from '../services/api';
 import { Link } from 'react-router-dom';
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
-import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
+import { Alert, AlertTitle, AlertDescription } from "../components/ui/alert";
 import { Loader2, ArrowLeft, Mail } from "lucide-react";
 
 const formSchema = z.object({

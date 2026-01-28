@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Button } from "./ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Camera, Loader2 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import { useAuth } from '@/context/AuthContext';
+import api from '@/services/api';
 import { toast } from "sonner";
 
 const AvatarUpload: React.FC = () => {

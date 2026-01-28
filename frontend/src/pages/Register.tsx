@@ -6,10 +6,10 @@ import { AxiosError } from 'axios';
 import api from '../services/api';
 import zxcvbn from 'zxcvbn';
 
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "./ui/card";
-import { Alert, AlertTitle } from './ui/alert';
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "../components/ui/card";
+import { Alert, AlertTitle } from '../components/ui/alert';
 import { InfoIcon } from 'lucide-react';
 import {
   Form,
@@ -18,9 +18,9 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "./ui/form";
+} from "../components/ui/form";
 import { toast } from "sonner";
-import { Progress } from './ui/progress';
+import { Progress } from '../components/ui/progress';
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -107,12 +107,19 @@ const Register: React.FC = () => {
         if (err.response && err.response.status === 400) {
           const errorData = err.response.data;
 
-          if (errorData.errors && Array.isArray(errorData.errors)) {
+          if (Array.isArray(errorData.detail)) {
+            errorData.detail.forEach((fieldError: any) => {
+              form.setError(fieldError.field, { message: fieldError.message });
+            });
+          } else if (errorData.errors && Array.isArray(errorData.errors)) {
             errorData.errors.forEach((fieldError: FieldError) => {
               form.setError(fieldError.field, { message: fieldError.message });
             });
           } else {
-            form.setError("root", { message: errorData.detail || 'A validation error occurred.' });
+            const errorMessage = typeof errorData.detail === 'string' 
+              ? errorData.detail 
+              : 'Registration failed. Please try again.';
+            form.setError("root", { message: errorMessage });
           }
         } else {
           form.setError("root", { message: 'Registration failed. Please try again later.' });

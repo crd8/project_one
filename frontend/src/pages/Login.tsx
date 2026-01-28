@@ -7,10 +7,10 @@ import { AxiosError } from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "./ui/card";
-import { Alert, AlertTitle } from './ui/alert';
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "../components/ui/card";
+import { Alert, AlertTitle } from '../components/ui/alert';
 import { InfoIcon, Lock, Loader2 } from 'lucide-react';
 import {
   Form,
@@ -19,7 +19,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "./ui/form";
+} from "../components/ui/form";
 import { 
   Dialog, 
   DialogContent, 
@@ -27,7 +27,7 @@ import {
   DialogTitle, 
   DialogDescription, 
   DialogFooter 
-} from "./ui/dialog";
+} from "../components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "./ui/alert-dialog";
+} from "../components/ui/alert-dialog";
 
 // schema login
 const loginSchema = z.object({
@@ -90,7 +90,7 @@ const Login: React.FC = () => {
     params.append('password', data.password);
 
     try {
-      const response = await api.post('/token', params);
+      const response = await api.post('/auth/login', params);
       const responseData = response.data;
 
       if (responseData.require_2fa) {
@@ -105,6 +105,7 @@ const Login: React.FC = () => {
       if (err instanceof AxiosError) {
         if (err.response?.status === 429) errorMessage = "Too many login attempts.";
         else if (err.response?.status === 401) errorMessage = "Incorrect username or password.";
+        else if (err.response?.status === 403) errorMessage = "Account is not active. Please verify your email.";
       }
       loginForm.setError("root", { message: errorMessage });
     }

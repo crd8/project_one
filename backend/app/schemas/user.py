@@ -27,7 +27,7 @@ class User(BaseModel):
 class EmailSchema(BaseModel):
   email: EmailStr
 
-class TwoFactorSetuoResponse(BaseModel):
+class TwoFactorSetupResponse(BaseModel):
   secret: str
   qr_code: str
 

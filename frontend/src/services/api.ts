@@ -36,8 +36,15 @@ api.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
+    const isLoginRequest = originalRequest.url?.includes('/auth/login');
+    const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
 
-    if (error.response?.status === 401 && originalRequest.url !== '/token' && originalRequest.url !== '/token/refresh' && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 && 
+      !isLoginRequest &&
+      !isRefreshRequest &&
+      !originalRequest._retry
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -51,7 +58,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await api.post('/token/refresh');
+        const { data } = await api.post('/auth/refresh');
         const newAccessToken = data.access_token;
 
         setAuthToken(newAccessToken);

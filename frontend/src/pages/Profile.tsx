@@ -1,18 +1,18 @@
 import React, { useState } from 'react'
 import { useSearchParams } from 'react-router-dom';;
 import { useAuth } from '../context/AuthContext';
-import ActiveSessions from './ActiveSessions';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
-import { Button } from './ui/button';
+import ActiveSessions from '@/features/profile/ActiveSessions';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
+import { Button } from '../components/ui/button';
 import { ShieldCheck, ShieldAlert, Pencil, KeyRound } from 'lucide-react';
 import { toast } from "sonner";
 
-import TwoFactorSetup from './TwoFactorSetup';
-import TwoFactorDisable from './TwoFactorDisable';
+import TwoFactorSetup from '@/features/auth/TwoFactorSetup';
+import TwoFactorDisable from '@/features/auth/TwoFactorDisable';
 
-import EditProfile from './EditProfile';
-import ChangePassword from './ChangePassword';
-import AvatarUpload from './AvatarUpload';
+import EditProfile from '@/features/profile/EditProfile';
+import ChangePassword from '@/features/profile/ChangePassword';
+import AvatarUpload from '@/features/profile/AvatarUpload';
 
 const ProfileDataRow: React.FC<{ label: string; value: string | number | boolean }> = ({ label, value }) => (
   <div className="flex justify-between border-b py-2 text-sm">

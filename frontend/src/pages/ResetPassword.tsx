@@ -6,10 +6,10 @@ import * as z from "zod";
 import api from '../services/api';
 import zxcvbn from 'zxcvbn';
 
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
