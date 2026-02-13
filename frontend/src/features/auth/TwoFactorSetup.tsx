@@ -78,8 +78,14 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ isOpen, onOpenChange })
                 Click the button below to create a QR Code.
               </p>
               <Button onClick={startSetup} disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Generate QR Code
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate QR Code"
+                )}
               </Button>
             </div>
           )}
@@ -114,9 +120,19 @@ const TwoFactorSetup: React.FC<TwoFactorSetupProps> = ({ isOpen, onOpenChange })
 
         {step === 2 && (
           <DialogFooter>
-            <Button onClick={confirmSetup} disabled={isLoading || otp.length < 6} className="w-full">
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Verify & Activate
+            <Button 
+              onClick={confirmSetup} 
+              disabled={isLoading || otp.length < 6} 
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify & Activate"
+              )}
             </Button>
           </DialogFooter>
         )}

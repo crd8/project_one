@@ -132,11 +132,19 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ isOpen, onOpenChange })
             />
 
             <DialogFooter>
-               <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Cancel</Button>
-               <Button type="submit" disabled={form.formState.isSubmitting}>
-                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                 Update Password
-               </Button>
+              <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Password"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

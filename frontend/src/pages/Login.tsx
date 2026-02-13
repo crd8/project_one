@@ -145,7 +145,7 @@ const Login: React.FC = () => {
       setIsResetOpen(false);
       resetForm.reset();
       
-      setDialogMessage("A reset link has been sent to your email (also check your spam folder).");
+      setDialogMessage("Request received. If the email you entered is registered, we have sent a 2FA reset link. Please check your inbox or spam folder.");
       setShowSuccessDialog(true);
       
       setLoginStep(1);
@@ -240,7 +240,14 @@ const Login: React.FC = () => {
               />
               
               <Button type="submit" className='w-full' disabled={loginForm.formState.isSubmitting}>
-                {loginForm.formState.isSubmitting ? "Verifying..." : "Login"}
+                {loginForm.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Login"
+                )}
               </Button>
             </form>
           </Form>
@@ -273,7 +280,14 @@ const Login: React.FC = () => {
             </div>
 
             <Button type="submit" className='w-full' disabled={isLoginLoading || otp.length < 6}>
-              {isLoginLoading ? "Verifying..." : "Verify Code"}
+              {isLoginLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify Code"
+              )}
             </Button>
 
             <div className="text-center mt-4">
@@ -338,8 +352,14 @@ const Login: React.FC = () => {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={resetForm.formState.isSubmitting}>
-                  {resetForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Send Reset Link
+                  {resetForm.formState.isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Reset Link"
+                  )}
                 </Button>
               </DialogFooter>
             </form>

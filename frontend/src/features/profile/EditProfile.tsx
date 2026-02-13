@@ -116,8 +116,14 @@ const EditProfile: React.FC<EditProfileProps> = ({ isOpen, onOpenChange }) => {
                   />
                   <div className="flex justify-end">
                     <Button type="submit" disabled={formName.formState.isSubmitting}>
-                      {formName.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save
+                      {formName.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save"
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -157,9 +163,19 @@ const EditProfile: React.FC<EditProfileProps> = ({ isOpen, onOpenChange }) => {
                   />
 
                   <div className="flex justify-end">
-                    <Button type="submit" variant="secondary" disabled={formEmail.formState.isSubmitting}>
-                      {formEmail.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Send Verification
+                    <Button 
+                      type="submit" 
+                      variant="secondary"
+                      disabled={formEmail.formState.isSubmitting}
+                    >
+                      {formEmail.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send Verification"
+                      )}
                     </Button>
                   </div>
                 </form>

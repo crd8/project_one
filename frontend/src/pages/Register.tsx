@@ -10,7 +10,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "../components/ui/card";
 import { Alert, AlertTitle } from '../components/ui/alert';
-import { InfoIcon } from 'lucide-react';
+import { InfoIcon, Loader2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -246,7 +246,14 @@ const Register: React.FC = () => {
               className='w-full mt-6'
               disabled={form.formState.isSubmitting} 
             >
-              {form.formState.isSubmitting ? "Mendaftar..." : "Register"}
+              {form.formState.isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Registration...
+                </>
+              ) : (
+                "Register"
+              )}
             </Button>
           </form>
         </Form>
