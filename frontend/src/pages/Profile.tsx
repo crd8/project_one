@@ -16,8 +16,8 @@ import AvatarUpload from '@/features/profile/AvatarUpload';
 
 const ProfileDataRow: React.FC<{ label: string; value: string | number | boolean }> = ({ label, value }) => (
   <div className="flex justify-between border-b py-2 text-sm">
-    <dt className="text-neutral-500">{label}</dt>
-    <dd className="font-medium text-neutral-900">{value.toString()}</dd>
+    <dt className="text-foreground">{label}</dt>
+    <dd className="font-medium text-muted-foreground">{value.toString()}</dd>
   </div>
 );
 
@@ -76,7 +76,7 @@ const Profile: React.FC = () => {
             <ProfileDataRow label="Fullname" value={user.fullname || '-'} />
             <ProfileDataRow label="Email" value={user.email} />
             <div className="flex justify-between border-b py-2 text-sm items-center">
-              <dt className="text-neutral-500">Two-Factor Auth</dt>
+              <dt className="text-foreground">Two-Factor Auth</dt>
               <dd className="font-medium">
                 {user.is_2fa_enabled ? (
                   <div className="flex items-center text-green-600 gap-1">
@@ -112,7 +112,7 @@ const Profile: React.FC = () => {
             </Button>
           ) : (
             <div className="flex flex-col w-full gap-2">
-              <Button variant="secondary" disabled className="w-full text-green-700 bg-green-100 opacity-100 cursor-not-allowed">
+              <Button variant="secondary" disabled className="w-full text-green-500 bg-green-100 dark:bg-green-100 opacity-100 cursor-not-allowed">
                 <ShieldCheck className="w-4 h-4 mr-2" />
                 Two-Step Verification Active
               </Button>

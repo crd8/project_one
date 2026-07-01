@@ -74,10 +74,10 @@ const SessionTimer: React.FC = () => {
             variant="outline" 
             className={cn(
                 "transition-colors duration-500 font-mono flex items-center gap-2",
-                isRefreshing ? "bg-blue-50 text-blue-700 border-blue-200" :
-                isCritical ? "bg-red-50 text-red-600 border-red-200 animate-pulse" :
-                isWarning ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                "bg-white text-neutral-600 border-neutral-200"
+                isRefreshing ? "bg-background text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900" :
+                isCritical ? "bg-background text-red-600 dark:text-red-200 border-red-200 dark:border-red-700 animate-pulse" :
+                isWarning ? "bg-background text-yellow-700 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700" :
+                "bg-background text-neutral-600 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700"
             )}
         >
             {isRefreshing ? (

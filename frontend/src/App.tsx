@@ -8,12 +8,14 @@ import { useAuth } from './context/AuthContext';
 import SessionTimer from './components/common/SessionTimer';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import { ThemeProvider } from './components/theme-provider';
+import { ThemeToggle } from './components/common/ThemeToggle';
 import { Button } from './components/ui/button';
 import { Toaster } from "./components/ui/sonner";
 import { Loader2 } from 'lucide-react';
 
 const FullPageLoader = () => (
-  <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50">
+  <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-50">
     <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
     <p className="text-sm font-medium text-muted-foreground animate-pulse">
       Preparing your session...
@@ -122,22 +124,24 @@ const Navbar = () => {
   };
 
   return (
-    <nav className='bg-neutral-100 flex items-center justify-between px-5 py-3 border-b'>
+    <nav className='bg-background flex items-center justify-between px-5 py-3 border-b'>
       <div className="flex items-center space-x-4">
         <Link to="/" className="font-semibold text-lg tracking-tight">MyApp</Link>
         
-        <Button variant="link" asChild className="p-0 text-neutral-600">
+        <Button variant="link" asChild className="p-0 text-foreground">
           <Link to="/">Home</Link>
         </Button>
         
         {token && (
-          <Button variant="link" asChild className="p-0 text-neutral-600">
+          <Button variant="link" asChild className="p-0 text-foreground">
             <Link to="/profile">Profile</Link>
           </Button>
         )}
       </div>
       
       <div className="flex items-center space-x-4">
+        <ThemeToggle />
+        <div className="h-5 w-px bg-border mx-2"></div>
         {renderAuthButton()}
       </div>
     </nav>
@@ -150,60 +154,62 @@ const App: React.FC = () => {
   if (isLoading) {
     return <FullPageLoader />;
   }
-    
+  
   return (
-    <Router>
-      <div className="min-h-screen bg-background font-sans antialiased">
-        <Navbar />
-        
-        <div className="p-5 max-w-7xl mx-auto">
-          <Routes>
-            <Route 
-              path="/login"
-              element={
-                <PublicRoute>
-                  <Login/>
-                </PublicRoute>
-              } 
-            />
-            <Route
-              path="/register"
-              element={
-                <PublicRoute>
-                  <Register />
-                </PublicRoute>
-              }
-            />
-            <Route 
-              path="/forgot-password" 
-              element={
-                <PublicRoute>
-                  <ForgotPassword />
-                </PublicRoute>
-              } 
-            />
-            <Route 
-              path="/reset-password" 
-              element={
-                <PublicRoute>
-                  <ResetPassword />
-                </PublicRoute>
-              } 
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<HomePage />} />
-          </Routes>
+    <ThemeProvider defaultTheme="system" storageKey="myapp-ui-theme">
+      <Router>
+        <div className="min-h-screen bg-background font-sans antialiased">
+          <Navbar />
+          
+          <div className="p-5 max-w-7xl mx-auto">
+            <Routes>
+              <Route 
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <Login/>
+                  </PublicRoute>
+                } 
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <Register />
+                  </PublicRoute>
+                }
+              />
+              <Route 
+                path="/forgot-password" 
+                element={
+                  <PublicRoute>
+                    <ForgotPassword />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/reset-password" 
+                element={
+                  <PublicRoute>
+                    <ResetPassword />
+                  </PublicRoute>
+                } 
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<HomePage />} />
+            </Routes>
+          </div>
+          <Toaster position="top-center" />
         </div>
-        <Toaster position="top-center" />
-      </div>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 };
 

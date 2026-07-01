@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h3>Account Locked</h3>
+
+    <p>Hello <strong>{{ fullname }}</strong>,</p>
+
+    <p>
+        Your account has been temporarily locked because we detected
+        <span class="alert">5 unsuccessful login attempts</span>.
+    </p>
+
+    <p>
+        For your security, your account will remain locked for
+        <strong>30 minutes</strong>. If these login attempts were made by you and you would like to unlock your account immediately, please click the button below:
+    </p>
+
+    <div>
+        <a href="{{ link }}" class="btn">Unlock Account</a>
+    </div>
+
+    <p style="margin-top: 25px; font-size: 13px;">
+        If you did not make these login attempts, please ignore this email. Your account will automatically become available again after 30 minutes, but we recommend changing your password.
+    </p>
+
+    <p style="margin-top: 10px; font-size: 12px; color: #94a3b8;">
+        This unlock link is valid for 30 minutes.
+    </p>
+{% endblock %}

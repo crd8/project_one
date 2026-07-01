@@ -1,6 +1,6 @@
 from typing import Annotated
 from app.core import security, tokens
-from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta
@@ -14,7 +14,7 @@ from app import crud, models, schemas
 from app.api import deps
 from app.core.tokens import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.config import conf
-from fastapi_mail import FastMail, MessageSchema, MessageType
+from app.services import email as email_service
 
 router = APIRouter()
 
@@ -27,8 +27,12 @@ async def setup_2fa(
   secret = pyotp.random_base32()
 
   db_user = db.query(models.User).filter(models.User.id == current_user.id).first()
-  db_user.totp_secret = secret
-  db.commit()
+  if db_user.totp_secret and not db_user.is_2fa_enabled:
+    secret = db_user.totp_secret
+  else:
+    secret = pyotp.random_base32()
+    db_user.totp_secret = secret
+    db.commit()
 
   uri = pyotp.totp.TOTP(secret).provisioning_uri(
     name=current_user.email,
@@ -59,9 +63,11 @@ async def enable_2fa(
   
   totp = pyotp.TOTP(db_user.totp_secret)
   if not totp.verify(verification.code, valid_window=1):
+    db_user.totp_secret = None 
+    db.commit()
     raise HTTPException(
-      status_code=400,
-      detail="Invalid 2FA code"
+      status_code=400, 
+      detail="Invalid 2FA code. Secret has been reset, please setup again."
     )
   
   db_user.is_2fa_enabled = True
@@ -84,6 +90,7 @@ async def disable_2fa(
     )
 
   db_user.is_2fa_enabled = False
+
   db_user.totp_secret = None
   db.commit()
 
@@ -152,6 +159,7 @@ async def verify_2fa_login(
 @router.post("/request-reset")
 async def request_2fa_reset(
   body: schemas.user.EmailSchema,
+  background_tasks: BackgroundTasks,
   db: Session = Depends(deps.get_db)
 ):
   user = crud.get_user_by_email(db, email=body.email)
@@ -166,20 +174,12 @@ async def request_2fa_reset(
     expires_delta=timedelta(minutes=15)
   )
 
-  reset_link = f"http://localhost:8000/auth/2fa/confirm-reset?token={reset_token}"
-
-  message = MessageSchema(
-    subject="Reset 2FA - MyApp",
-    recipients=[user.email],
-    template_body={
-      "fullname": user.fullname,
-      "link": reset_link
-    },
-    subtype=MessageType.html
+  background_tasks.add_task(
+    email_service.send_reset_2fa_email,
+    user.email,
+    user.fullname,
+    reset_token
   )
-
-  fm = FastMail(conf)
-  await fm.send_message(message, template_name="reset_2fa.html")
 
   return {"message": "If the email is registered, a reset link has been sent."}
 

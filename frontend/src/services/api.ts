@@ -27,7 +27,7 @@ const processQueue = (error: any, token: string | null = null) => {
       prom.resolve(token as string);
     }
   });
-  failedQueue = [];35
+  failedQueue = [];
 };
 
 api.interceptors.response.use(

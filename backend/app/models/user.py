@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, func, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -18,6 +18,8 @@ class User(Base):
   is_2fa_enabled = Column(Boolean, default=False)
   is_active = Column(Boolean, default=True)
   is_superuser = Column(Boolean, default=False)
+  failed_login_attempts = Column(Integer, default=0, nullable=False)
+  locked_until = Column(DateTime(timezone=True), nullable=True)
   created_at = Column(DateTime(timezone=True), server_default=func.now())
   updated_at = Column(DateTime(timezone=True), onupdate=func.now())
   profile_image = Column(String, nullable=True)

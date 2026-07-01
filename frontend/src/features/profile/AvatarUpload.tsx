@@ -129,10 +129,10 @@ const AvatarUpload: React.FC = () => {
       />
         
       <div className="text-center space-y-1">
-        <h3 className="font-bold text-xl text-neutral-800 tracking-tight">
+        <h3 className="font-bold text-xl text-foreground tracking-tight">
             {user.fullname}
         </h3>
-        <p className="text-sm font-medium text-neutral-500 bg-neutral-100 px-3 py-1 rounded-full inline-block">
+        <p className="text-sm font-medium text-foreground bg-background px-3 py-1 rounded-full inline-block">
             @{user.username}
         </p>
       </div>

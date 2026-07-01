@@ -111,7 +111,7 @@ const ActiveSessions: React.FC = () => {
               });
 
               return (
-                <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-neutral-50 transition-colors">
+                <div key={session.id} className="flex items-center justify-between p-3 border bg-background rounded-lg transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-neutral-100 rounded-full">
                       {icon}

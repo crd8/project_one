@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -57,6 +57,9 @@ const Login: React.FC = () => {
   const { login } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // state countdown ratelimiter
+  const [countdown, setCountdown] = useState(0);
+
   // State Login
   const [loginStep, setLoginStep] = useState<1 | 2>(1);
   const [tempToken, setTempToken] = useState<string | null>(null);
@@ -70,6 +73,14 @@ const Login: React.FC = () => {
   // State Dialog success
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
+
+  // effect countdonw ratelimiter
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   // form login
   const loginForm = useForm<LoginFormValues>({
@@ -103,9 +114,14 @@ const Login: React.FC = () => {
     } catch (err: unknown) {
       let errorMessage = "Login failed.";
       if (err instanceof AxiosError) {
-        if (err.response?.status === 429) errorMessage = "Too many login attempts.";
+        if (err.response?.status === 429) {
+          errorMessage = "Too many login attempts. Please wait a moment.";
+          setCountdown(60);
+        }
         else if (err.response?.status === 401) errorMessage = "Incorrect username or password.";
-        else if (err.response?.status === 403) errorMessage = "Account is not active. Please verify your email.";
+        else if (err.response?.status === 403) {
+          errorMessage = err.response?.data?.detail || "Account is inactive. Please verify your email.";
+        }
       }
       loginForm.setError("root", { message: errorMessage });
     }
@@ -159,6 +175,23 @@ const Login: React.FC = () => {
   // useEffect handle url params
   React.useEffect(() => {
     const status = searchParams.get('status');
+    const unlockToken = searchParams.get('unlock_token');
+
+    if (unlockToken) {
+      const processUnlock = async () => {
+        try {
+          await api.post('/auth/unlock-account', { token: unlockToken });
+          setDialogMessage("Your account has been unlocked. Please log in.");
+          setShowSuccessDialog(true);
+        } catch (error) {
+          setDialogMessage("Failed to unlock account. the link may be invalid or expired.");
+          setShowSuccessDialog(true);
+        }
+      };
+      processUnlock();
+      return;
+    }
+
     if (status === 'reset_success') {
       setDialogMessage("2FA Successfully Disabled! Please log back in with your password only.");
       setShowSuccessDialog(true);
@@ -175,6 +208,9 @@ const Login: React.FC = () => {
       setDialogMessage("This account is already active. Please log in.");
       setShowSuccessDialog(true);
     }
+    else if (status === 'account_unlocked') {
+      setDialogMessage("Your account has been unlocked. Please log in.");
+    }
 
     if (status) {
       setSearchParams({});
@@ -184,7 +220,7 @@ const Login: React.FC = () => {
   return (
     <Card className='px-5 max-w-sm mx-auto mt-5'>
       <CardHeader>
-        <CardTitle>{loginStep === 1 ? "Login" : "Two-Factor Authentication"}</CardTitle>
+        <CardTitle>{loginStep === 1 ? "Login to your account" : "Two-Factor Authentication"}</CardTitle>
         <CardDescription>
           {loginStep === 1 
             ? "Enter your credentials below" 
@@ -229,7 +265,7 @@ const Login: React.FC = () => {
                   <FormItem>
                     <div className='flex items-center justify-between'>
                       <FormLabel>Password</FormLabel>
-                      <Link to="/forgot-password" className="text-xs text-blue-600 hover:underline">
+                      <Link to="/forgot-password" className="ml-auto inline-block text-sm underline-offset-4 hover:underline">
                         Forgot Password?
                       </Link>
                     </div>
@@ -239,8 +275,10 @@ const Login: React.FC = () => {
                 )}
               />
               
-              <Button type="submit" className='w-full' disabled={loginForm.formState.isSubmitting}>
-                {loginForm.formState.isSubmitting ? (
+              <Button type="submit" className='w-full' disabled={loginForm.formState.isSubmitting || countdown > 0}>
+                {countdown > 0 ? (
+                  `Please wait ${countdown} seconds...`
+                ) : loginForm.formState.isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Verifying...

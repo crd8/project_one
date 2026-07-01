@@ -13,7 +13,7 @@ from jose import jwt, JWTError
 from app import schemas, crud, models
 from app.api import deps
 from app.core.config import conf
-from fastapi_mail import FastMail, MessageSchema, MessageType
+from app.services import email as email_service
 
 router = APIRouter()
 
@@ -46,20 +46,12 @@ def create_user(
     expires_delta=timedelta(hours=24)
   )
 
-  verify_link = f"http://localhost:8000/auth/verify-email?token={verify_token}"
-
-  message = MessageSchema(
-    subject="MyApp Account Verification",
-    recipients=[new_user.email],
-    template_body={
-      "fullname": new_user.fullname,
-      "link": verify_link
-    },
-    subtype=MessageType.html
+  background_tasks.add_task(
+    email_service.send_verification_email,
+    new_user.email,
+    new_user.fullname,
+    verify_token
   )
-  
-  fm = FastMail(conf)
-  background_tasks.add_task(fm.send_message, message, template_name="verify_email.html")
   
   return new_user
 
@@ -164,33 +156,20 @@ async def request_email_change(
     data={"sub": db_user.username, "new_email": body.new_email, "type": "change_email"},
     expires_delta=timedelta(hours=1)
   )
-  verify_link = f"http://localhost:8000/users/verify-change-email?token={verify_token}"
 
-  fm = FastMail(conf)
-
-  msg_verify = MessageSchema(
-    subject="New Email Verification - MyApp",
-    recipients=[body.new_email],
-    template_body={
-      "fullname": db_user.fullname,
-      "new_email": body.new_email,
-      "link": verify_link
-    },
-    subtype=MessageType.html
+  background_tasks.add_task(
+    email_service.send_email_change_verify,
+    body.new_email,
+    db_user.fullname,
+    verify_token
   )
-  background_tasks.add_task(fm.send_message, msg_verify, template_name="change_email.html")
 
-  msg_alert = MessageSchema(
-    subject="Security Alert: Email Change Request",
-    recipients=[db_user.email],
-    template_body={
-      "fullname": db_user.fullname, 
-      "change_type": "Email Address",
-      "detail": f"changing the email address to {body.new_email}"
-    },
-    subtype=MessageType.html
+  background_tasks.add_task(
+    email_service.send_email_change_alert,
+    db_user.email,
+    db_user.fullname,
+    body.new_email
   )
-  background_tasks.add_task(fm.send_message, msg_alert, template_name="alert.html")
 
   db.commit()
   db.refresh(db_user)

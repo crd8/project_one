@@ -1,38 +1,91 @@
 from typing import Annotated
 from app.core import security, tokens
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Cookie, BackgroundTasks, Body
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from jose import jwt, JWTError
 import uuid
 
 from app import crud, models, schemas
 from app.api import deps
 from app.core.tokens import ACCESS_TOKEN_EXPIRE_MINUTES
-from app.core.config import conf
-from fastapi_mail import FastMail, MessageSchema, MessageType
+from app.services import email as email_service
 
 router = APIRouter()
 
 # ------------------ for login ------------------
-@router.post("/login", response_model=schemas.user.LoginResponse)
+@router.post(
+  "/login",
+  response_model=schemas.user.LoginResponse,
+  dependencies=[Depends(RateLimiter(times=10, seconds=120))]
+)
 async def login_for_access_token(
   response: Response,
   request: Request,
   form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+  background_tasks: BackgroundTasks,
   db: Session = Depends(deps.get_db)
 ):
   user = crud.user.get_user_by_username(db, username=form_data.username)
 
-  if not user or not security.verify_password(form_data.password, user.hashed_password):
+  if not user:
     raise HTTPException(
       status_code=status.HTTP_401_UNAUTHORIZED,
       detail="Incorrect username or password",
       headers={"WWW-Authenticate": "Bearer"},
     )
   
+  if user.locked_until and user.locked_until > datetime.now(timezone.utc):
+    raise HTTPException(
+      status_code=status.HTTP_403_FORBIDDEN,
+      detail="Account is temporariy locked, please check your email to unlock or wait 30 minutes.",
+      headers={"WWW-Authenticate": "Bearer"},
+    )
+  
+  if not security.verify_password(form_data.password, user.hashed_password):
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+
+    if user.failed_login_attempts >= 5:
+      user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+      db.commit()
+
+      # generate restore token
+      unlock_token = tokens.create_access_token(
+        data={"sub": user.username, "type": "account_unlock"},
+        expires_delta=timedelta(minutes=30)
+      )
+
+      background_tasks.add_task(
+        email_service.send_unlock_email,
+        user.email,
+        user.fullname,
+        unlock_token
+      )
+
+      return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": "Incorrect username or password"},
+        headers={"WWW-Authenticate": "Bearer"},
+        background=background_tasks
+      )
+      
+    else:
+      db.commit()
+      raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username or password",
+        headers={"WWW-Authenticate": "Bearer"},
+      )
+  
+  # reset counter if login successful
+  if (user.failed_login_attempts and user.failed_login_attempts > 0) or user.locked_until:
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
+
   if not user.is_active:
     raise HTTPException(
       status_code=status.HTTP_403_FORBIDDEN,
@@ -67,7 +120,7 @@ async def login_for_access_token(
     key="refresh_token",
     value=refresh_token_plain,
     httponly=True,
-    secure=False,
+    secure=False, # In production, set this to True if using HTTPS
     expires=refresh_token_expires_at,
     samesite="lax",
   )
@@ -148,6 +201,7 @@ async def verify_email(token: str, db: Session = Depends(deps.get_db)):
 @router.post("/password-reset/request")
 async def request_password_reset(
   body: schemas.user.EmailSchema,
+  background_tasks: BackgroundTasks,
   db: Session = Depends(deps.get_db),
 ):
   user = crud.user.get_user_by_email(db, email=body.email)
@@ -160,20 +214,12 @@ async def request_password_reset(
     expires_delta=timedelta(minutes=15)
   )
 
-  reset_link = f"http://localhost:3000/reset-password?token={reset_token}"
-
-  message = MessageSchema(
-    subject="Reset Password = MyApp",
-    recipients=[user.email],
-    template_body={
-      "fullname": user.fullname,
-      "link": reset_link
-    },
-    subtype=MessageType.html
+  background_tasks.add_task(
+    email_service.send_reset_password_email,
+    user.email,
+    user.fullname,
+    reset_token
   )
-
-  fm = FastMail(conf)
-  await fm.send_message(message, template_name="reset_password.html")
 
   return {"message": "If the email is registered, a password reset link has been sent."}
 
@@ -264,3 +310,26 @@ async def revoke_session(
     )
   
   return {"message": "Session revoked successfully"}
+
+# ------------------ for unlock account ------------------
+@router.post("/unlock-account")
+async def unlock_account(token: Annotated[str, Body(embed=True)], db: Session = Depends(deps.get_db)):
+  try:
+    payload = jwt.decode(token, tokens.SECRET_KEY, algorithms=[tokens.ALGORITHM])
+    username: str = payload.get("sub")
+    token_type: str = payload.get("type")
+      
+    if username is None or token_type != "account_unlock":
+      raise HTTPException(status_code=400, detail="Invalid token")
+  except JWTError:
+    raise HTTPException(status_code=400, detail="Token expired or invalid")
+      
+  user = crud.user.get_user_by_username(db, username=username)
+  if not user:
+    raise HTTPException(status_code=404, detail="User not found")
+      
+  user.locked_until = None
+  user.failed_login_attempts = 0
+  db.commit()
+  
+  return {"message": "Account unlocked successfully"}
